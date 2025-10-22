@@ -4,7 +4,6 @@
   gather_facts: true
 
   vars:
-    output_dir: "{{ output_dir | default('/tmp') }}"
     llm_temperature: 0.4
     llm_max_tokens: 2000
 
@@ -138,15 +137,9 @@
           - Prompt Tokens: {{ llm_response.json.usage.prompt_tokens }}
           - Completion Tokens: {{ llm_response.json.usage.completion_tokens }}
           - Total Tokens: {{ llm_response.json.usage.total_tokens }}
-        dest: "{{ output_dir }}/alert_triage_{{ ansible_date_time.epoch }}.txt"
+        dest: "/tmp/alert_triage_{{ ansible_date_time.epoch }}.txt"
       register: triage_file
 
     - name: Analysis saved
       ansible.builtin.debug:
-        msg:
-          - "Alert triage analysis saved to: {{ triage_file.dest }}"
-          - ""
-          - "Note: In AAP, this file is saved inside the execution pod."
-          - "The full analysis is captured in the job output above."
-          - "For local execution, set output_dir to save to your project:"
-          - "  ansible-playbook alert_triage.yml -e 'output_dir={{ playbook_dir }}/../output'"
+        msg: "Alert triage analysis saved to: {{ triage_file.dest }}"
