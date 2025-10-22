@@ -1,0 +1,130 @@
+---
+- name: AIOps Incident Summarization Demo
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    output_format: "{{ output_format | default('servicenow') }}"
+    llm_temperature: 0.3
+    llm_max_tokens: 1200
+
+  tasks:
+    - name: Display demo information
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "AIOps Incident Summarization Demo"
+          - "================================"
+          - "Converting cryptic alerts to clear ServiceNow tickets"
+          - "LLM Model: {{ lookup('env', 'LLM_MODEL') }}"
+          - "================================"
+
+    - name: Load incident data
+      ansible.builtin.slurp:
+        src: "{{ playbook_dir }}/../files/incidents/sample_incident.json"
+      register: incident_file_raw
+
+    - name: Parse incident JSON
+      ansible.builtin.set_fact:
+        incident_data: "{{ incident_file_raw.content | b64decode | from_json }}"
+
+    - name: Display raw alert
+      ansible.builtin.debug:
+        msg:
+          - "Raw Alert Received:"
+          - "{{ incident_data.incident.raw_alert.raw_message }}"
+          - ""
+          - "Related Alerts: {{ incident_data.incident.related_alerts | length }}"
+
+    - name: Prepare ServiceNow incident prompt
+      ansible.builtin.set_fact:
+        incident_prompt: |-
+          You are an expert IT Operations analyst creating ServiceNow incident tickets from monitoring alerts.
+
+          Convert the following cryptic monitoring alert into a clear, actionable ServiceNow incident ticket.
+
+          RAW ALERT DATA:
+          {{ incident_data.incident.raw_alert | to_nice_json }}
+
+          RELATED ALERTS:
+          {{ incident_data.incident.related_alerts | to_nice_json }}
+
+          CONTEXT:
+          {{ incident_data.incident.context | to_nice_json }}
+
+          Create a ServiceNow incident ticket with:
+          1. **Short Description** (clear, business-focused subject line - max 100 chars)
+          2. **Description** (detailed explanation that non-technical stakeholders can understand)
+          3. **Impact Assessment** (what services/customers are affected)
+          4. **Priority** (P1/P2/P3/P4 with justification)
+          5. **Recommended Actions** (immediate steps for incident responders)
+          6. **Root Cause Hypothesis** (likely cause based on alert correlation)
+          7. **Assignment Group** (which team should handle this)
+
+          Format the output as a clear, professional ServiceNow ticket that incident responders can act on immediately.
+
+    - name: Query LLM API for incident summarization
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'LLM_API_KEY') }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          model: "{{ lookup('env', 'LLM_MODEL') }}"
+          messages:
+            - role: system
+              content: "You are an expert IT Operations analyst specializing in incident management and ServiceNow ticket creation. Create clear, actionable tickets that enable rapid incident response."
+            - role: user
+              content: "{{ incident_prompt }}"
+          temperature: "{{ llm_temperature }}"
+          max_tokens: "{{ llm_max_tokens }}"
+        status_code: 200
+        timeout: 60
+        validate_certs: false
+      register: llm_response
+
+    - name: Extract incident ticket from LLM response
+      ansible.builtin.set_fact:
+        incident_ticket: "{{ llm_response.json.choices[0].message.content }}"
+
+    - name: Display ServiceNow Incident Ticket
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "AI-GENERATED SERVICENOW TICKET"
+          - "================================"
+          - "{{ incident_ticket }}"
+          - "================================"
+          - "Token Usage:"
+          - "  Prompt: {{ llm_response.json.usage.prompt_tokens }}"
+          - "  Completion: {{ llm_response.json.usage.completion_tokens }}"
+          - "  Total: {{ llm_response.json.usage.total_tokens }}"
+          - "================================"
+
+    - name: Save incident ticket to file
+      ansible.builtin.copy:
+        content: |
+          ServiceNow Incident Ticket - AI Generated
+          =========================================
+          Generated: {{ ansible_date_time.iso8601 }}
+          Model: {{ lookup('env', 'LLM_MODEL') }}
+          Alert ID: {{ incident_data.incident.raw_alert.alert_id }}
+
+          {{ incident_ticket }}
+
+          ---
+          Original Alert Data:
+          {{ incident_data.incident.raw_alert | to_nice_yaml }}
+
+          Token Usage:
+          - Prompt Tokens: {{ llm_response.json.usage.prompt_tokens }}
+          - Completion Tokens: {{ llm_response.json.usage.completion_tokens }}
+          - Total Tokens: {{ llm_response.json.usage.total_tokens }}
+        dest: "/tmp/servicenow_incident_{{ ansible_date_time.epoch }}.txt"
+      register: ticket_file
+
+    - name: Ticket saved
+      ansible.builtin.debug:
+        msg: "ServiceNow ticket saved to: {{ ticket_file.dest }}"

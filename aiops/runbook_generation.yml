@@ -1,0 +1,158 @@
+---
+- name: AIOps Runbook Generation Demo
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    incident_description: "{{ incident_description | default('RDS database connection pool exhaustion causing payment transaction failures') }}"
+    service_name: "{{ service_name | default('Payment Processing Service') }}"
+    llm_temperature: 0.4
+    llm_max_tokens: 2500
+
+  tasks:
+    - name: Display demo information
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "AIOps Runbook Generation Demo"
+          - "================================"
+          - "Generating troubleshooting runbook for:"
+          - "  Service: {{ service_name }}"
+          - "  Incident: {{ incident_description }}"
+          - "LLM Model: {{ lookup('env', 'LLM_MODEL') }}"
+          - "================================"
+
+    - name: Prepare runbook generation prompt
+      ansible.builtin.set_fact:
+        runbook_prompt: |-
+          You are an expert Site Reliability Engineer creating operational runbooks for incident response.
+
+          Generate a comprehensive troubleshooting runbook for the following incident scenario:
+
+          **Service:** {{ service_name }}
+          **Incident Type:** {{ incident_description }}
+
+          Create a detailed runbook with the following sections:
+
+          1. **Incident Overview**
+             - Brief description of the problem
+             - Common symptoms and indicators
+             - Typical business impact
+
+          2. **Immediate Response Steps** (First 5 minutes)
+             - Initial triage actions
+             - Quick health checks to perform
+             - Immediate containment measures if needed
+
+          3. **Diagnostic Procedures**
+             - Step-by-step investigation commands/queries
+             - What to check and in what order
+             - Key metrics and logs to examine
+             - How to identify the root cause
+
+          4. **Resolution Steps**
+             - Common fixes and workarounds
+             - Step-by-step remediation procedures
+             - Verification steps to confirm resolution
+
+          5. **Escalation Criteria**
+             - When to escalate and to whom
+             - What information to gather before escalating
+
+          6. **Post-Incident Actions**
+             - Verification checklist
+             - Communication templates
+             - Follow-up tasks
+
+          7. **Prevention and Monitoring**
+             - Preventive measures to avoid recurrence
+             - Monitoring improvements to detect earlier
+             - Suggested alerts and thresholds
+
+          8. **Reference Information**
+             - Related documentation links (use placeholders like [wiki/service-name])
+             - On-call contacts (use placeholders like [on-call-team])
+             - Related runbooks
+
+          Format as a clear, actionable runbook that a junior engineer could follow during a high-pressure incident.
+          Use command examples where applicable (with placeholders for environment-specific values).
+
+    - name: Query LLM API for runbook generation
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'LLM_API_KEY') }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          model: "{{ lookup('env', 'LLM_MODEL') }}"
+          messages:
+            - role: system
+              content: "You are an expert Site Reliability Engineer specializing in creating clear, actionable operational runbooks. Your runbooks should be detailed enough for junior engineers to follow during incidents, while being concise enough to use under pressure."
+            - role: user
+              content: "{{ runbook_prompt }}"
+          temperature: "{{ llm_temperature }}"
+          max_tokens: "{{ llm_max_tokens }}"
+        status_code: 200
+        timeout: 60
+        validate_certs: false
+      register: llm_response
+
+    - name: Extract runbook from LLM response
+      ansible.builtin.set_fact:
+        generated_runbook: "{{ llm_response.json.choices[0].message.content }}"
+
+    - name: Display Generated Runbook
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "AI-GENERATED TROUBLESHOOTING RUNBOOK"
+          - "================================"
+          - "{{ generated_runbook }}"
+          - "================================"
+          - "Token Usage:"
+          - "  Prompt: {{ llm_response.json.usage.prompt_tokens }}"
+          - "  Completion: {{ llm_response.json.usage.completion_tokens }}"
+          - "  Total: {{ llm_response.json.usage.total_tokens }}"
+          - "================================"
+
+    - name: Save runbook to file
+      ansible.builtin.copy:
+        content: |
+          Troubleshooting Runbook - AI Generated
+          ======================================
+          Generated: {{ ansible_date_time.iso8601 }}
+          Model: {{ lookup('env', 'LLM_MODEL') }}
+          Service: {{ service_name }}
+          Incident Type: {{ incident_description }}
+
+          {{ generated_runbook }}
+
+          ---
+          Generation Metadata:
+          - Timestamp: {{ ansible_date_time.iso8601 }}
+          - Model: {{ lookup('env', 'LLM_MODEL') }}
+          - Temperature: {{ llm_temperature }}
+          - Token Usage:
+            * Prompt Tokens: {{ llm_response.json.usage.prompt_tokens }}
+            * Completion Tokens: {{ llm_response.json.usage.completion_tokens }}
+            * Total Tokens: {{ llm_response.json.usage.total_tokens }}
+
+          ---
+          IMPORTANT: This runbook was AI-generated and should be reviewed by subject matter
+          experts before being used in production. Customize commands, thresholds, and
+          procedures based on your specific environment and requirements.
+        dest: "/tmp/runbook_{{ service_name | lower | regex_replace(' ', '_') }}_{{ ansible_date_time.epoch }}.md"
+      register: runbook_file
+
+    - name: Runbook saved
+      ansible.builtin.debug:
+        msg:
+          - "Runbook saved to: {{ runbook_file.dest }}"
+          - ""
+          - "NEXT STEPS:"
+          - "1. Review the generated runbook for accuracy"
+          - "2. Customize commands for your environment"
+          - "3. Add to your documentation repository"
+          - "4. Train team members on the procedures"

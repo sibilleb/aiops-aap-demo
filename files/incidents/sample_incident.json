@@ -1,0 +1,52 @@
+{
+  "incident": {
+    "raw_alert": {
+      "timestamp": "2025-01-22T09:32:14Z",
+      "alert_id": "CW-RDS-CONN-98-20250122-093214",
+      "source": "cloudwatch_rds_monitor",
+      "raw_message": "ALARM: \"payment-db-prod-01-DatabaseConnections\" in US East (N. Virginia) Reason: Threshold Crossed: 1 datapoint [98.0 (22/01/25 09:32:00)] was greater than or equal to the threshold (95.0). At 2025-01-22T09:32:14.123Z the value of DatabaseConnections was 98.0",
+      "severity": "HIGH",
+      "metric_namespace": "AWS/RDS",
+      "metric_name": "DatabaseConnections",
+      "dimensions": {
+        "DBInstanceIdentifier": "payment-db-prod-01"
+      },
+      "state_change": "OK -> ALARM",
+      "tags": {
+        "Environment": "production",
+        "Application": "IBS-PaymentProcessing",
+        "CostCenter": "IT-OPS-001",
+        "Compliance": "PCI-DSS"
+      }
+    },
+    "related_alerts": [
+      {
+        "timestamp": "2025-01-22T09:32:17Z",
+        "alert_id": "APP-PAY-TX-FAIL-20250122-093217",
+        "message": "PaymentAPI: Transaction failure rate exceeded threshold - 45% failures",
+        "severity": "CRITICAL"
+      },
+      {
+        "timestamp": "2025-01-22T09:32:25Z",
+        "alert_id": "ELB-HC-FAIL-20250122-093225",
+        "message": "Target ec2-payment-prod-03 health check failed - removed from target group",
+        "severity": "HIGH"
+      },
+      {
+        "timestamp": "2025-01-22T09:33:05Z",
+        "alert_id": "CW-RDS-CPU-92-20250122-093305",
+        "message": "RDS CPUUtilization: 92% on payment-db-prod-01",
+        "severity": "MEDIUM"
+      }
+    ],
+    "context": {
+      "service_tier": "Tier 1 - Business Critical",
+      "sla_target": "99.95%",
+      "on_call_team": "Platform Engineering",
+      "escalation_path": "L1 -> L2 -> Manager On-Call",
+      "affected_customers": "Unknown - investigating",
+      "business_hours": false,
+      "pci_scope": true
+    }
+  }
+}

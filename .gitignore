@@ -1,0 +1,114 @@
+# ============================================================================
+# AIOps AAP Demo - Git Ignore File
+# ============================================================================
+
+# Local testing and sensitive data
+local-testing/
+
+# Claude Code Configuration and Session Files
+.claude/
+CLAUDE.md
+
+# Python
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Ansible
+*.retry
+.vault_pass
+vault.yml
+group_vars/vault.yml
+host_vars/vault.yml
+*.vault
+collections/ansible_collections/
+
+# Credentials and Secrets
+*_credentials.yml
+*_secrets.yml
+*_passwords.yml
+*.key
+*.pem
+*.crt
+*.p12
+.env
+.env.local
+secrets/
+
+# IDE and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+*.out
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+
+# Test Results
+.pytest_cache/
+.coverage
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Documentation Build
+docs/_build/
+site/
+
+# Ansible Tower/AAP
+tower_cli.cfg
+
+# Custom
+reports/
+output/

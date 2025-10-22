@@ -1,0 +1,114 @@
+---
+- name: AIOps Log Analysis Demo
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    log_scenario: "{{ log_scenario | default('banking') }}"
+    output_format: "{{ output_format | default('text') }}"
+    llm_temperature: 0.5
+    llm_max_tokens: 1500
+
+  tasks:
+    - name: Display demo information
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "AIOps Log Analysis Demo"
+          - "================================"
+          - "Scenario: {{ log_scenario }}"
+          - "LLM Model: {{ lookup('env', 'LLM_MODEL') }}"
+          - "================================"
+
+    - name: Load log file based on scenario
+      ansible.builtin.slurp:
+        src: "{{ playbook_dir }}/../files/logs/{{ log_scenario }}_log.txt"
+      register: log_file_raw
+
+    - name: Decode log content
+      ansible.builtin.set_fact:
+        log_content: "{{ log_file_raw.content | b64decode }}"
+
+    - name: Display log sample
+      ansible.builtin.debug:
+        msg:
+          - "Log file loaded successfully"
+          - "Size: {{ log_content | length }} characters"
+          - "First 200 characters:"
+          - "{{ log_content[:200] }}..."
+
+    - name: Prepare analysis prompt
+      ansible.builtin.set_fact:
+        analysis_prompt: |
+          Analyze the following application logs and provide:
+          1. Summary of the issue
+          2. Root cause analysis
+          3. Impact assessment
+          4. Recommended remediation steps
+          5. Prevention recommendations
+
+          LOGS:
+          {{ log_content }}
+
+    - name: Query LLM API for log analysis
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'LLM_API_KEY') }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          model: "{{ lookup('env', 'LLM_MODEL') }}"
+          messages:
+            - role: system
+              content: "You are an expert IT Operations analyst specializing in log analysis and troubleshooting. Provide clear, actionable insights."
+            - role: user
+              content: "{{ analysis_prompt }}"
+          temperature: "{{ llm_temperature }}"
+          max_tokens: "{{ llm_max_tokens }}"
+        status_code: 200
+        timeout: 60
+        validate_certs: false
+      register: llm_response
+
+    - name: Extract analysis from LLM response
+      ansible.builtin.set_fact:
+        analysis_result: "{{ llm_response.json.choices[0].message.content }}"
+
+    - name: Display AI Analysis Results
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "AI-POWERED LOG ANALYSIS"
+          - "================================"
+          - "{{ analysis_result }}"
+          - "================================"
+          - "Token Usage:"
+          - "  Prompt: {{ llm_response.json.usage.prompt_tokens }}"
+          - "  Completion: {{ llm_response.json.usage.completion_tokens }}"
+          - "  Total: {{ llm_response.json.usage.total_tokens }}"
+          - "================================"
+
+    - name: Save analysis to file
+      ansible.builtin.copy:
+        content: |
+          AIOps Log Analysis Report
+          =========================
+          Generated: {{ ansible_date_time.iso8601 }}
+          Scenario: {{ log_scenario }}
+          Model: {{ lookup('env', 'LLM_MODEL') }}
+
+          {{ analysis_result }}
+
+          ---
+          Token Usage:
+          - Prompt Tokens: {{ llm_response.json.usage.prompt_tokens }}
+          - Completion Tokens: {{ llm_response.json.usage.completion_tokens }}
+          - Total Tokens: {{ llm_response.json.usage.total_tokens }}
+        dest: "/tmp/aiops_log_analysis_{{ ansible_date_time.epoch }}.txt"
+      register: report_file
+
+    - name: Report saved
+      ansible.builtin.debug:
+        msg: "Analysis report saved to: {{ report_file.dest }}"

@@ -1,0 +1,145 @@
+---
+- name: AIOps Alert Triage Demo
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    llm_temperature: 0.4
+    llm_max_tokens: 2000
+
+  tasks:
+    - name: Display demo information
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "AIOps Alert Triage Demo"
+          - "================================"
+          - "Analyzing and prioritizing multiple alerts"
+          - "LLM Model: {{ lookup('env', 'LLM_MODEL') }}"
+          - "================================"
+
+    - name: Load alerts data
+      ansible.builtin.slurp:
+        src: "{{ playbook_dir }}/../files/alerts/sample_alerts.json"
+      register: alerts_file_raw
+
+    - name: Parse alerts JSON
+      ansible.builtin.set_fact:
+        alerts_data: "{{ alerts_file_raw.content | b64decode | from_json }}"
+
+    - name: Display alert summary
+      ansible.builtin.debug:
+        msg:
+          - "Alerts Loaded: {{ alerts_data.alerts | length }}"
+          - "Time Range: {{ alerts_data.alerts | map(attribute='timestamp') | min }} to {{ alerts_data.alerts | map(attribute='timestamp') | max }}"
+          - ""
+          - "Severity Breakdown:"
+          - "  Critical: {{ alerts_data.alerts | selectattr('severity', 'equalto', 'critical') | list | length }}"
+          - "  Warning: {{ alerts_data.alerts | selectattr('severity', 'equalto', 'warning') | list | length }}"
+          - "  Info: {{ alerts_data.alerts | selectattr('severity', 'equalto', 'info') | list | length }}"
+
+    - name: Prepare alert triage prompt
+      ansible.builtin.set_fact:
+        triage_prompt: |-
+          You are an expert Site Reliability Engineer performing alert triage during an incident.
+
+          Analyze the following {{ alerts_data.alerts | length }} alerts and provide intelligent triage recommendations.
+
+          ALERTS:
+          {{ alerts_data.alerts | to_nice_json }}
+
+          Provide the following analysis:
+
+          1. **Alert Correlation Analysis**
+             - Identify which alerts are likely related to the same underlying issue
+             - Group correlated alerts together
+             - Explain the relationship between correlated alerts
+
+          2. **Root Cause Hypothesis**
+             - Based on alert patterns and timing, what is the most likely root cause?
+             - Which alert represents the PRIMARY issue vs. symptoms?
+
+          3. **Priority Ranking**
+             - Rank all alerts by actual urgency (not just their reported severity)
+             - Consider timing, service impact, and correlation
+             - Format: Alert ID, Adjusted Priority (P1/P2/P3/P4), Reason
+
+          4. **Immediate Actions Required**
+             - Which 2-3 alerts require immediate human investigation?
+             - What should the on-call engineer investigate first?
+
+          5. **Auto-Acknowledgment Candidates**
+             - Which alerts can be safely auto-acknowledged as symptoms/duplicates?
+             - Provide justification for each
+
+          6. **Escalation Recommendation**
+             - Does this situation require immediate escalation?
+             - Which team(s) should be engaged?
+
+          Be concise and actionable. Focus on reducing alert noise and accelerating incident response.
+
+    - name: Query LLM API for alert triage
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'LLM_API_KEY') }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          model: "{{ lookup('env', 'LLM_MODEL') }}"
+          messages:
+            - role: system
+              content: "You are an expert Site Reliability Engineer specializing in alert triage, incident management, and root cause analysis. Provide clear, actionable recommendations that reduce alert fatigue and accelerate incident resolution."
+            - role: user
+              content: "{{ triage_prompt }}"
+          temperature: "{{ llm_temperature }}"
+          max_tokens: "{{ llm_max_tokens }}"
+        status_code: 200
+        timeout: 60
+        validate_certs: false
+      register: llm_response
+
+    - name: Extract triage analysis from LLM response
+      ansible.builtin.set_fact:
+        triage_analysis: "{{ llm_response.json.choices[0].message.content }}"
+
+    - name: Display Alert Triage Analysis
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "AI-POWERED ALERT TRIAGE ANALYSIS"
+          - "================================"
+          - "{{ triage_analysis }}"
+          - "================================"
+          - "Token Usage:"
+          - "  Prompt: {{ llm_response.json.usage.prompt_tokens }}"
+          - "  Completion: {{ llm_response.json.usage.completion_tokens }}"
+          - "  Total: {{ llm_response.json.usage.total_tokens }}"
+          - "================================"
+
+    - name: Save triage analysis to file
+      ansible.builtin.copy:
+        content: |
+          Alert Triage Analysis - AI Generated
+          ====================================
+          Generated: {{ ansible_date_time.iso8601 }}
+          Model: {{ lookup('env', 'LLM_MODEL') }}
+          Alerts Analyzed: {{ alerts_data.alerts | length }}
+
+          {{ triage_analysis }}
+
+          ---
+          Original Alerts:
+          {{ alerts_data.alerts | to_nice_yaml }}
+
+          Token Usage:
+          - Prompt Tokens: {{ llm_response.json.usage.prompt_tokens }}
+          - Completion Tokens: {{ llm_response.json.usage.completion_tokens }}
+          - Total Tokens: {{ llm_response.json.usage.total_tokens }}
+        dest: "/tmp/alert_triage_{{ ansible_date_time.epoch }}.txt"
+      register: triage_file
+
+    - name: Analysis saved
+      ansible.builtin.debug:
+        msg: "Alert triage analysis saved to: {{ triage_file.dest }}"
