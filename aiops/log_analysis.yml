@@ -1,7 +1,7 @@
 ---
 - name: AIOps Log Analysis Demo
   hosts: localhost
-  gather_facts: false
+  gather_facts: true
 
   vars:
     log_scenario: "{{ log_scenario | default('banking') }}"

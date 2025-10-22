@@ -1,7 +1,7 @@
 ---
 - name: AIOps Incident Summarization Demo
   hosts: localhost
-  gather_facts: false
+  gather_facts: true
 
   vars:
     output_format: "{{ output_format | default('servicenow') }}"

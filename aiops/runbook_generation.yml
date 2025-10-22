@@ -1,7 +1,7 @@
 ---
 - name: AIOps Runbook Generation Demo
   hosts: localhost
-  gather_facts: false
+  gather_facts: true
 
   vars:
     incident_description: "{{ incident_description | default('RDS database connection pool exhaustion causing payment transaction failures') }}"
