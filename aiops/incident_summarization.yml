@@ -5,6 +5,7 @@
 
   vars:
     output_format: "{{ output_format | default('servicenow') }}"
+    output_dir: "{{ output_dir | default('/tmp') }}"
     llm_temperature: 0.3
     llm_max_tokens: 1200
 
@@ -122,9 +123,15 @@
           - Prompt Tokens: {{ llm_response.json.usage.prompt_tokens }}
           - Completion Tokens: {{ llm_response.json.usage.completion_tokens }}
           - Total Tokens: {{ llm_response.json.usage.total_tokens }}
-        dest: "/tmp/servicenow_incident_{{ ansible_date_time.epoch }}.txt"
+        dest: "{{ output_dir }}/servicenow_incident_{{ ansible_date_time.epoch }}.txt"
       register: ticket_file
 
     - name: Ticket saved
       ansible.builtin.debug:
-        msg: "ServiceNow ticket saved to: {{ ticket_file.dest }}"
+        msg:
+          - "ServiceNow ticket saved to: {{ ticket_file.dest }}"
+          - ""
+          - "Note: In AAP, this file is saved inside the execution pod."
+          - "The full ticket content is captured in the job output above."
+          - "For local execution, set output_dir to save to your project:"
+          - "  ansible-playbook incident_summarization.yml -e 'output_dir={{ playbook_dir }}/../output'"

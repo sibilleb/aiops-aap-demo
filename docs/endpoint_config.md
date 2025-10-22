@@ -14,8 +14,6 @@ The AIOps demos use the OpenAI Chat Completions API format, which is widely supp
 
 ## Mistral API
 
-**Recommended for:** Production use, cost-effective, excellent reasoning capabilities
-
 ### Configuration
 
 - **Endpoint URL**: `https://api.mistral.ai/v1/chat/completions`
@@ -32,16 +30,9 @@ LLM_API_KEY: your_mistral_api_key_here
 LLM_MODEL: mistral-large-latest
 ```
 
-### Notes
-- Supports JSON mode for structured outputs
-- No special headers required beyond Authorization
-- Rate limits depend on your subscription tier
-
 ---
 
 ## OpenAI
-
-**Recommended for:** Best-in-class performance, widely tested
 
 ### Configuration
 
@@ -59,16 +50,9 @@ LLM_API_KEY: sk-...your_openai_key...
 LLM_MODEL: gpt-4o
 ```
 
-### Notes
-- Requires valid payment method configured
-- Higher cost per token compared to alternatives
-- Excellent performance on complex reasoning tasks
-
 ---
 
 ## Azure OpenAI
-
-**Recommended for:** Enterprise deployments, compliance requirements
 
 ### Configuration
 
@@ -83,17 +67,9 @@ LLM_API_KEY: your_azure_openai_key_here
 LLM_MODEL: gpt-4
 ```
 
-### Notes
-- API key goes in `Authorization: Bearer {key}` header (same as OpenAI)
-- Must create deployment in Azure before use
-- API version required in URL
-- Regional deployment options for data residency
-
 ---
 
 ## AWS Bedrock
-
-**Recommended for:** AWS-native deployments, enterprise security
 
 ### Configuration
 
@@ -109,12 +85,6 @@ LLM_ENDPOINT_URL: http://your-litellm-proxy:8000/chat/completions
 LLM_API_KEY: your_litellm_key
 LLM_MODEL: bedrock/anthropic.claude-3-sonnet-20240229-v1:0
 ```
-
-### Notes
-- Requires IAM credentials configured on proxy
-- Model names include `bedrock/` prefix
-- Consider deploying LiteLLM in same VPC as AAP
-
 ---
 
 ## Red Hat OpenShift AI (RHOAI)
@@ -145,8 +115,6 @@ LLM_MODEL: mistralai/Mistral-7B-Instruct-v0.2
 
 ## Ollama (Local Development)
 
-**Recommended for:** Local testing, development, air-gapped demos
-
 ### Configuration
 
 Ollama doesn't natively support OpenAI format, but you can:
@@ -160,11 +128,6 @@ LLM_ENDPOINT_URL: http://localhost:8000/chat/completions
 LLM_API_KEY: anything
 LLM_MODEL: ollama/mistral
 ```
-
-### Notes
-- API key can be any value (ignored)
-- Models must be pulled locally first: `ollama pull mistral`
-- Performance depends on local hardware
 
 ---
 
@@ -311,19 +274,6 @@ timeout: 120  # seconds
 - Check model is available in your region (Azure)
 - Ensure deployment exists (Azure, RHOAI)
 
----
-
-## Provider Comparison
-
-| Provider | Cost | Performance | Privacy | Ease of Setup |
-|----------|------|-------------|---------|---------------|
-| Mistral API | Low-Medium | High | Cloud | Easy |
-| OpenAI | Medium-High | Very High | Cloud | Easy |
-| Azure OpenAI | Medium-High | Very High | Enterprise | Medium |
-| AWS Bedrock | Medium | High | Enterprise | Medium |
-| RHOAI | Hardware Cost | Medium-High | On-Prem | Complex |
-| Ollama | Free | Low-Medium | Local | Easy |
-| vLLM | Hardware Cost | High | Custom | Medium |
 
 ---
 

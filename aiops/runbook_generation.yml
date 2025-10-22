@@ -6,6 +6,7 @@
   vars:
     incident_description: "{{ incident_description | default('RDS database connection pool exhaustion causing payment transaction failures') }}"
     service_name: "{{ service_name | default('Payment Processing Service') }}"
+    output_dir: "{{ output_dir | default('/tmp') }}"
     llm_temperature: 0.4
     llm_max_tokens: 2500
 
@@ -143,13 +144,18 @@
           IMPORTANT: This runbook was AI-generated and should be reviewed by subject matter
           experts before being used in production. Customize commands, thresholds, and
           procedures based on your specific environment and requirements.
-        dest: "/tmp/runbook_{{ service_name | lower | regex_replace(' ', '_') }}_{{ ansible_date_time.epoch }}.md"
+        dest: "{{ output_dir }}/runbook_{{ service_name | lower | regex_replace(' ', '_') }}_{{ ansible_date_time.epoch }}.md"
       register: runbook_file
 
     - name: Runbook saved
       ansible.builtin.debug:
         msg:
           - "Runbook saved to: {{ runbook_file.dest }}"
+          - ""
+          - "Note: In AAP, this file is saved inside the execution pod."
+          - "The full runbook is captured in the job output above."
+          - "For local execution, set output_dir to save to your project:"
+          - "  ansible-playbook runbook_generation.yml -e 'output_dir={{ playbook_dir }}/../output'"
           - ""
           - "NEXT STEPS:"
           - "1. Review the generated runbook for accuracy"

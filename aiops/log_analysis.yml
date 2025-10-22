@@ -6,6 +6,7 @@
   vars:
     log_scenario: "{{ log_scenario | default('banking') }}"
     output_format: "{{ output_format | default('text') }}"
+    output_dir: "{{ output_dir | default('/tmp') }}"
     llm_temperature: 0.5
     llm_max_tokens: 1500
 
@@ -106,9 +107,15 @@
           - Prompt Tokens: {{ llm_response.json.usage.prompt_tokens }}
           - Completion Tokens: {{ llm_response.json.usage.completion_tokens }}
           - Total Tokens: {{ llm_response.json.usage.total_tokens }}
-        dest: "/tmp/aiops_log_analysis_{{ ansible_date_time.epoch }}.txt"
+        dest: "{{ output_dir }}/aiops_log_analysis_{{ ansible_date_time.epoch }}.txt"
       register: report_file
 
     - name: Report saved
       ansible.builtin.debug:
-        msg: "Analysis report saved to: {{ report_file.dest }}"
+        msg:
+          - "Analysis report saved to: {{ report_file.dest }}"
+          - ""
+          - "Note: In AAP, this file is saved inside the execution pod."
+          - "The full report content is captured in the job output above."
+          - "For local execution, set output_dir to save to your project:"
+          - "  ansible-playbook log_analysis.yml -e 'output_dir={{ playbook_dir }}/../output'"

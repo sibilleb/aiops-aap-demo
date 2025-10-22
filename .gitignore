@@ -94,6 +94,11 @@ tmp/
 temp/
 *.tmp
 *.bak
+
+# Generated Reports/Output
+output/
+*.report.txt
+*.report.md
 *.orig
 
 # Test Results
