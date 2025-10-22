@@ -1,0 +1,20 @@
+2025-01-22 11:45:12 INFO [AppServer] Application started successfully on port 8080
+2025-01-22 11:45:15 INFO [DatabasePool] Connection pool initialized with 10 connections
+2025-01-22 11:45:18 INFO [CacheManager] Redis cache connected at redis-cluster-01:6379
+2025-01-22 12:30:45 WARN [DatabasePool] Connection response time degraded - average 450ms
+2025-01-22 12:31:02 ERROR [DatabasePool] Failed to execute query: timeout after 5000ms
+2025-01-22 12:31:03 ERROR [APIController] Request failed for /api/v1/users/profile - Database timeout
+2025-01-22 12:31:05 ERROR [DatabasePool] Connection validation failed - marking connection as stale
+2025-01-22 12:31:10 WARN [CacheManager] Cache miss rate elevated - 45% (normal: <10%)
+2025-01-22 12:31:15 ERROR [AuthService] JWT validation failed - token expired for user_id: 12345
+2025-01-22 12:31:20 ERROR [MessageQueue] Failed to publish event to queue 'user.events' - connection refused
+2025-01-22 12:31:25 CRITICAL [AppServer] Circuit breaker OPEN for service: payment-service (5 consecutive failures)
+2025-01-22 12:31:30 ERROR [ExternalAPI] HTTP 503 Service Unavailable from https://api.partner.com/v2/data
+2025-01-22 12:31:35 WARN [ThreadPool] Worker thread pool at 95% capacity (19/20 threads active)
+2025-01-22 12:31:40 ERROR [FileUpload] Failed to write file to /data/uploads/tmp/ - disk quota exceeded
+2025-01-22 12:31:45 ERROR [EmailService] SMTP connection failed - unable to reach mail.company.com:587
+2025-01-22 12:31:50 WARN [Scheduler] Scheduled job 'DataSync' exceeded timeout (600s) - terminating
+2025-01-22 12:32:00 ERROR [APIController] Unhandled exception in /api/v1/orders/create
+2025-01-22 12:32:00 ERROR [APIController] java.lang.NullPointerException: Cannot invoke method on null object
+2025-01-22 12:32:05 CRITICAL [HealthCheck] Health check FAILED - 3/5 dependencies unhealthy
+2025-01-22 12:32:10 WARN [LoadBalancer] Removing unhealthy instance app-server-03 from rotation

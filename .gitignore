@@ -82,9 +82,11 @@ secrets/
 ehthumbs.db
 Thumbs.db
 
-# Logs
+# Logs (but allow sample data in files/logs/)
 *.log
-logs/
+/logs/
+!files/logs/
+!files/logs/*.txt
 *.out
 
 # Temporary Files

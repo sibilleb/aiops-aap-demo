@@ -1,0 +1,28 @@
+2025-01-22 09:15:03 INFO [PaymentProcessor] Service started on ec2-payment-prod-03
+2025-01-22 09:15:06 INFO [TransactionDB] Connection pool initialized with 20 connections to RDS
+2025-01-22 09:15:08 INFO [FraudDetection] Real-time fraud engine connected successfully
+2025-01-22 09:15:10 INFO [APIGateway] Custom API Gateway ready on ec2-apigw-prod-03:8080
+2025-01-22 09:30:45 INFO [PaymentProcessor] Processing transaction TXN-20250122-4501 for $1,250.00
+2025-01-22 09:32:14 WARN [TransactionDB] Connection timeout to RDS primary after 30s, retrying...
+2025-01-22 09:32:17 ERROR [TransactionDB] Failed to acquire connection from pool after 3 attempts
+2025-01-22 09:32:17 ERROR [PaymentAPI] Transaction TXN-20250122-4523 failed - Database connection unavailable
+2025-01-22 09:32:17 ERROR [APIGateway] Custom API Gateway on ec2-apigw-prod-03 routing failed for /api/payments/process
+2025-01-22 09:32:18 ERROR [PaymentAPI] Transaction TXN-20250122-4524 failed - Database connection unavailable
+2025-01-22 09:32:19 WARN [FraudDetection] Unable to validate transaction TXN-20250122-4524 - DB connection lost
+2025-01-22 09:32:20 ERROR [PaymentAPI] Transaction TXN-20250122-4525 failed - Database connection unavailable
+2025-01-22 09:32:25 ERROR [HealthCheck] Payment processing health check FAILED - RDS unreachable
+2025-01-22 09:32:30 ERROR [TransactionDB] Connection pool exhausted - all 20 connections in timeout state
+2025-01-22 09:32:35 WARN [ALB] Removing ec2-payment-prod-03 from target group due to failed health checks
+2025-01-22 09:32:40 ERROR [APIGateway] Custom API Gateway failing - unable to route to any healthy payment processors
+2025-01-22 09:32:45 WARN [TransactionDB] Connection timeout to RDS primary after 30s, retrying...
+2025-01-22 09:32:48 ERROR [TransactionDB] Max retry attempts reached for RDS primary endpoint
+2025-01-22 09:32:50 CRITICAL [PaymentProcessor] Service degraded - 15 failed transactions in last minute
+2025-01-22 09:33:05 WARN [MonitoringAgent] CloudWatch alert triggered: RDS CPU at 92%, Memory at 88%
+2025-01-22 09:33:12 INFO [TransactionDB] RDS network connectivity restored - attempting reconnection
+2025-01-22 09:33:16 INFO [TransactionDB] Connection pool re-initialized successfully
+2025-01-22 09:33:18 INFO [PaymentAPI] Processing resumed - 47 transactions queued and being processed
+2025-01-22 09:33:25 INFO [FraudDetection] Fraud detection re-enabled - validating queued transactions
+2025-01-22 09:33:30 INFO [HealthCheck] Payment processing health check PASSED
+2025-01-22 09:33:35 INFO [ALB] Adding ec2-payment-prod-03 back to target group - health restored
+2025-01-22 09:34:00 INFO [PaymentProcessor] All queued transactions processed successfully
+2025-01-22 09:34:05 INFO [APIGateway] Custom API Gateway routing normalized - all services healthy

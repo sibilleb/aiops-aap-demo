@@ -1,0 +1,16 @@
+Jan 22 10:15:20 rhel-prod-01 systemd[1]: Starting HTTP Server...
+Jan 22 10:15:21 rhel-prod-01 httpd[2145]: AH00558: httpd: Could not reliably determine the server's fully qualified domain name
+Jan 22 10:15:22 rhel-prod-01 systemd[1]: httpd.service: Control process exited, code=exited, status=1/FAILURE
+Jan 22 10:15:23 rhel-prod-01 systemd[1]: httpd.service: Failed with result 'exit-code'.
+Jan 22 10:15:23 rhel-prod-01 systemd[1]: Failed to start HTTP Server.
+Jan 22 10:15:24 rhel-prod-01 kernel: [12345.678901] XFS (dm-0): metadata I/O error in "xfs_trans_read_buf_map" at daddr 0x123456 len 8 error 5
+Jan 22 10:15:25 rhel-prod-01 kernel: [12345.678990] XFS (dm-0): xfs_do_force_shutdown(0x1) called from line 1234 of file fs/xfs/xfs_trans_buf.c
+Jan 22 10:15:25 rhel-prod-01 kernel: [12345.679001] XFS (dm-0): Corruption detected. Unmount and run xfs_repair
+Jan 22 10:15:25 rhel-prod-01 systemd[1]: var.mount: Unit entered failed state
+Jan 22 10:15:26 rhel-prod-01 systemd[1]: Disk quota exceeded
+Jan 22 10:15:27 rhel-prod-01 kernel: [12345.679123] EXT4-fs error (device sda1): ext4_journal_check_start:56: Detected aborted journal
+Jan 22 10:16:01 rhel-prod-01 auditd[1234]: audit(1234567890.123:456): avc: denied { write } for pid=2145 comm="httpd" name="index.html" dev="dm-0" ino=123456 scontext=system_u:system_r:httpd_t:s0 tcontext=system_u:object_r:var_t:s0 tclass=file permissive=0
+Jan 22 10:16:05 rhel-prod-01 systemd[1]: session-123.scope: Failed to add PIDs to scope's control group: No space left on device
+Jan 22 10:16:10 rhel-prod-01 kernel: [12346.789012] Out of memory: Killed process 2345 (java) total-vm:2048000kB, anon-rss:1024000kB, file-rss:0kB
+Jan 22 10:16:15 rhel-prod-01 systemd[1]: mysql.service: Main process exited, code=killed, status=9/KILL
+Jan 22 10:16:20 rhel-prod-01 systemd[1]: mysql.service: Failed with result 'signal'.
