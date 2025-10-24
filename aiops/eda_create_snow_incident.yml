@@ -3,6 +3,13 @@
   hosts: localhost
   gather_facts: true
 
+  pre_tasks:
+    - name: Ensure servicenow.itsm collection is installed
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection install servicenow.itsm --force
+      changed_when: false
+      failed_when: false
+
   vars:
     # These variables are passed from the previous workflow job via set_stats
     ai_short_description: "{{ ai_short_description | default('') }}"
