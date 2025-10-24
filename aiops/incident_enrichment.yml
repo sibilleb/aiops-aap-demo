@@ -1,0 +1,199 @@
+---
+- name: AIOps ServiceNow Incident Enrichment
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    incident_sys_id: "{{ incident_sys_id | default('') }}"
+    incident_number: "{{ incident_number | default('') }}"
+    short_description: "{{ short_description | default('') }}"
+    description: "{{ description | default('') }}"
+    llm_temperature: 0.4
+    llm_max_tokens: 2000
+
+  tasks:
+    - name: Display demo information
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "AIOps Incident Enrichment Demo"
+          - "================================"
+          - "Incident: {{ incident_number }}"
+          - "Sys ID: {{ incident_sys_id }}"
+          - "Original Short Description: {{ short_description }}"
+          - "LLM Model: {{ lookup('env', 'LLM_MODEL') }}"
+          - "================================"
+
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - incident_sys_id | length > 0
+          - incident_number | length > 0
+          - short_description | length > 0
+        fail_msg: "Missing required variables: incident_sys_id, incident_number, or short_description"
+
+    - name: Prepare AI enrichment prompt
+      ansible.builtin.set_fact:
+        enrichment_prompt: |-
+          You are an expert IT Operations analyst enriching ServiceNow incident tickets. Your goal is to transform brief, vague incident descriptions into detailed, actionable technical summaries.
+
+          ORIGINAL INCIDENT:
+          Number: {{ incident_number }}
+          Short Description: {{ short_description }}
+          Description: {{ description if description else 'Not provided' }}
+
+          TASK: Analyze this incident and provide enriched content in the following format:
+
+          **ENHANCED SHORT DESCRIPTION:**
+          (A concise but specific technical summary - 1 line, max 100 chars. Include service name, issue type, and impact. Use clear technical language but remain accessible.)
+
+          **ENHANCED DESCRIPTION:**
+          (A detailed technical explanation with the following sections:)
+
+          1. Issue Summary
+             - What is happening
+             - Which systems/services are affected
+             - Observable symptoms
+
+          2. Technical Context
+             - Likely component(s) involved
+             - Common causes for this type of issue
+             - Relevant technical details
+
+          3. Impact Assessment
+             - User/business impact
+             - Affected services or workflows
+             - Urgency and priority rationale
+
+          4. Initial Troubleshooting Steps
+             - First diagnostic commands to run
+             - Key logs to check
+             - Quick health checks
+
+          5. Root Cause Possibilities
+             - Most likely causes (ranked)
+             - Known issues matching this pattern
+             - Dependencies to investigate
+
+          6. Recommended Next Steps
+             - Immediate actions for incident responders
+             - Escalation path if needed
+             - Resolution approach
+
+          **TONE:** Balanced - technical accuracy with clear explanations accessible to both technical and non-technical stakeholders.
+
+          **IMPORTANT:** Base your analysis on the provided description, but expand with relevant technical context, common patterns, and troubleshooting guidance. If the original description is vague, provide educated analysis based on IT ops best practices.
+
+    - name: Query LLM API for incident enrichment
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'LLM_API_KEY') }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          model: "{{ lookup('env', 'LLM_MODEL') }}"
+          messages:
+            - role: system
+              content: "You are an expert IT Operations analyst specializing in incident management and technical troubleshooting. Provide detailed, actionable analysis that improves incident response."
+            - role: user
+              content: "{{ enrichment_prompt }}"
+          temperature: "{{ llm_temperature }}"
+          max_tokens: "{{ llm_max_tokens }}"
+        status_code: 200
+        timeout: 60
+        validate_certs: false
+      register: llm_response
+
+    - name: Extract enriched content from LLM response
+      ansible.builtin.set_fact:
+        ai_analysis: "{{ llm_response.json.choices[0].message.content }}"
+
+    - name: Parse enhanced short description
+      ansible.builtin.set_fact:
+        enhanced_short_desc: "{{ ai_analysis | regex_search('\\*\\*ENHANCED SHORT DESCRIPTION:\\*\\*\\s*\\n(.+?)\\n', '\\1') | first | default(short_description) }}"
+
+    - name: Parse enhanced description
+      ansible.builtin.set_fact:
+        enhanced_desc: "{{ ai_analysis | regex_search('\\*\\*ENHANCED DESCRIPTION:\\*\\*\\s*\\n(.+?)(?=\\n\\n|$)', '\\1', multiline=True, dotall=True) | first | default(ai_analysis) }}"
+
+    - name: Display AI-enhanced content
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "AI-ENHANCED INCIDENT CONTENT"
+          - "================================"
+          - ""
+          - "ENHANCED SHORT DESCRIPTION:"
+          - "{{ enhanced_short_desc }}"
+          - ""
+          - "ENHANCED DESCRIPTION:"
+          - "{{ enhanced_desc }}"
+          - ""
+          - "================================"
+
+    - name: Build work notes with change history
+      ansible.builtin.set_fact:
+        work_notes_content: |-
+          ========================================
+          AI INCIDENT ENRICHMENT APPLIED
+          ========================================
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          Model: {{ lookup('env', 'LLM_MODEL') }}
+
+          ORIGINAL CONTENT:
+          -----------------
+          Short Description: {{ short_description }}
+          Description: {{ description if description else 'Not provided' }}
+
+          ENHANCED CONTENT:
+          -----------------
+          Short Description: {{ enhanced_short_desc }}
+
+          {{ enhanced_desc }}
+
+          ========================================
+          AI ANALYSIS COMPLETE
+          ========================================
+
+          Token Usage:
+          - Prompt Tokens: {{ llm_response.json.usage.prompt_tokens }}
+          - Completion Tokens: {{ llm_response.json.usage.completion_tokens }}
+          - Total Tokens: {{ llm_response.json.usage.total_tokens }}
+
+    - name: Update ServiceNow incident via API
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident/{{ incident_sys_id }}"
+        method: PATCH
+        user: "{{ lookup('env', 'SNOW_USERNAME') }}"
+        password: "{{ lookup('env', 'SNOW_PASSWORD') }}"
+        force_basic_auth: yes
+        headers:
+          Accept: application/json
+          Content-Type: application/json
+        body_format: json
+        body:
+          short_description: "{{ enhanced_short_desc }}"
+          description: "{{ enhanced_desc }}"
+          work_notes: "{{ work_notes_content }}"
+          u_ai_enriched: true
+        status_code: 200
+        timeout: 30
+        validate_certs: false
+      register: snow_update
+
+    - name: Display ServiceNow update result
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "SERVICENOW UPDATE SUCCESSFUL"
+          - "================================"
+          - "Incident: {{ incident_number }}"
+          - "Sys ID: {{ incident_sys_id }}"
+          - "Updated: {{ snow_update.json.result.sys_updated_on }}"
+          - "AI Enriched Flag: {{ snow_update.json.result.u_ai_enriched }}"
+          - "================================"
+          - ""
+          - "View in ServiceNow:"
+          - "{{ lookup('env', 'SNOW_INSTANCE') }}/nav_to.do?uri=incident.do?sys_id={{ incident_sys_id }}"

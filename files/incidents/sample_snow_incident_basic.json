@@ -1,0 +1,11 @@
+{
+  "incident": {
+    "sys_id": "test123456789abcdef",
+    "number": "INC0001234",
+    "short_description": "App down",
+    "description": "Payment app not working",
+    "caller": "John Doe",
+    "priority": "2",
+    "state": "2"
+  }
+}
