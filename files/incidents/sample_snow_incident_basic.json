@@ -2,9 +2,9 @@
   "incident": {
     "sys_id": "test123456789abcdef",
     "number": "INC0001234",
-    "short_description": "App down",
-    "description": "Payment app not working",
-    "caller": "John Doe",
+    "short_description": "RDS DBConnectionsHigh ALARM us-east-1 prod-db-01",
+    "description": "Alarm Name: RDS-prod-db-01-DBConnectionsHigh\nAlarm Description: Triggered when DB connections exceed threshold\nAWS Account: 123456789012\nAlarm Region: us-east-1\nNew State: ALARM\nOld State: OK\nNew State Reason: Threshold Crossed: 1 out of the last 1 datapoints [487.0 (23/10/25 14:32:00)] was greater than the threshold (450.0) (minimum 1 datapoint for OK -> ALARM transition).\nAlarm ARN: arn:aws:cloudwatch:us-east-1:123456789012:alarm:RDS-prod-db-01-DBConnectionsHigh\nMetric Namespace: AWS/RDS\nMetric Name: DatabaseConnections\nDimension: {DBInstanceIdentifier=prod-db-01}\nPeriod: 300 seconds\nEvaluation Periods: 1\nDatapoints to Alarm: 1\nThreshold: 450.0\nComparison Operator: GreaterThanThreshold\nTreat Missing Data: notBreaching\nState Change Time: 2025-10-23T14:32:15.789+0000",
+    "caller": "Alert Integration",
     "priority": "2",
     "state": "2"
   }
