@@ -2,3 +2,5 @@
 collections:
   - name: ansible.builtin
   - name: community.general
+  - name: servicenow.itsm
+  - name: ansible.eda

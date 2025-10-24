@@ -1,0 +1,64 @@
+---
+- name: AIOps Alert Correlation Rulebook
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+        token: ""  # No auth token for demo - add in production
+
+  rules:
+    # ========================================================================
+    # Rule 1: Process single alert (immediate correlation)
+    # ========================================================================
+    - name: Process individual alert
+      condition: event.payload.dependency_tag is defined and event.payload.alert_id is defined
+      throttle:
+        once_within: 30 seconds
+        group_by_attributes:
+          - event.payload.dependency_tag
+      action:
+        run_job_template:
+          name: "AIOps: EDA Single Alert Storage"
+          organization: "AIOps Demos"
+          job_args:
+            extra_vars:
+              alert_data: "{{ event.payload }}"
+              dependency_tag: "{{ event.payload.dependency_tag }}"
+              received_at: "{{ event.meta.received_at }}"
+
+    # ========================================================================
+    # Rule 2: Process batch of correlated alerts (recommended approach)
+    # ========================================================================
+    - name: Process batch of correlated alerts
+      condition: >
+        event.payload.alerts is defined and
+        event.payload.alerts is iterable and
+        event.payload.dependency_tag is defined
+      action:
+        run_workflow_template:
+          name: "AIOps: EDA Alert Correlation Workflow"
+          organization: "AIOps Demos"
+          job_args:
+            extra_vars:
+              correlated_alerts: "{{ event.payload.alerts }}"
+              correlation_id: "{{ event.payload.correlation_id | default('auto-' + event.meta.received_at) }}"
+              dependency_tag: "{{ event.payload.dependency_tag }}"
+
+    # ========================================================================
+    # Rule 3: Generic alert catch-all with logging
+    # ========================================================================
+    - name: Log unmatched alerts
+      condition: event.payload is defined
+      action:
+        debug:
+          msg: "Received alert event: {{ event.payload }}"
+
+    # ========================================================================
+    # Rule 4: Health check endpoint
+    # ========================================================================
+    - name: Health check response
+      condition: event.payload.action is defined and event.payload.action == "health_check"
+      action:
+        debug:
+          msg: "EDA rulebook is active and healthy"

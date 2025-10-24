@@ -1,0 +1,149 @@
+---
+- name: AIOps EDA Create ServiceNow Incident
+  hosts: localhost
+  gather_facts: true
+
+  vars:
+    # These variables are passed from the previous workflow job via set_stats
+    ai_short_description: "{{ ai_short_description | default('') }}"
+    ai_full_analysis: "{{ ai_full_analysis | default('') }}"
+    alert_details_table: "{{ alert_details_table | default('') }}"
+    incident_severity: "{{ incident_severity | default('warning') }}"
+    snow_priority: "{{ snow_priority | default('2') }}"
+    snow_urgency: "{{ snow_urgency | default('2') }}"
+    snow_impact: "{{ snow_impact | default('2') }}"
+    dependency_tag: "{{ dependency_tag | default('') }}"
+    alert_count: "{{ alert_count | default(0) }}"
+    affected_hosts: "{{ affected_hosts | default('') }}"
+    llm_tokens_used: "{{ llm_tokens_used | default(0) }}"
+
+    # ServiceNow connection details from credentials
+    snow_instance_url: "{{ lookup('env', 'SNOW_INSTANCE') }}"
+    snow_username: "{{ lookup('env', 'SNOW_USERNAME') }}"
+    snow_password: "{{ lookup('env', 'SNOW_PASSWORD') }}"
+
+    # Alert Integration caller ID
+    alert_integration_caller: "ca93c3c183f0325021ee47447daad34f"
+
+  tasks:
+    - name: Display incident creation information
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Creating ServiceNow Incident"
+          - "========================================="
+          - "Short Description: {{ ai_short_description }}"
+          - "Severity: {{ incident_severity }}"
+          - "Alert Count: {{ alert_count }}"
+          - "Dependency Tag: {{ dependency_tag }}"
+          - "========================================="
+
+    - name: Validate required data from previous workflow job
+      ansible.builtin.assert:
+        that:
+          - ai_short_description | length > 0
+          - ai_full_analysis | length > 0
+          - alert_details_table | length > 0
+          - dependency_tag | length > 0
+        fail_msg: "Missing required data from previous workflow job. Ensure alert correlation job completed successfully."
+        success_msg: "All required data received from workflow"
+
+    # ========================================================================
+    # STEP 1: Build comprehensive incident description
+    # ========================================================================
+    - name: Build incident description with AI analysis and alert details
+      ansible.builtin.set_fact:
+        incident_description: |-
+          ========================================
+          AI-GENERATED ANALYSIS
+          ========================================
+
+          {{ ai_full_analysis }}
+
+          ========================================
+          ORIGINAL ALERT DETAILS
+          ========================================
+
+          {{ alert_details_table }}
+
+          ========================================
+          METADATA
+          ========================================
+          Created by: Event-Driven Ansible
+          Correlation Engine: AIOps EDA
+          AI Model: {{ lookup('env', 'LLM_MODEL') }}
+          Analysis Timestamp: {{ ansible_date_time.iso8601 }}
+          LLM Tokens Used: {{ llm_tokens_used }}
+          ========================================
+
+    # ========================================================================
+    # STEP 2: Create ServiceNow incident using ITSM collection
+    # ========================================================================
+    - name: Create incident in ServiceNow using ITSM module
+      servicenow.itsm.incident:
+        instance:
+          host: "{{ snow_instance_url | regex_replace('https://', '') }}"
+          username: "{{ snow_username }}"
+          password: "{{ snow_password }}"
+        state: new
+        short_description: "{{ ai_short_description }}"
+        description: "{{ incident_description }}"
+        caller: "{{ alert_integration_caller }}"
+        urgency: "{{ 'high' if snow_urgency == '1' else 'medium' }}"
+        impact: "{{ 'high' if snow_impact == '1' else 'medium' }}"
+        priority: "{{ 'critical' if snow_priority == '1' else 'high' }}"
+        other:
+          u_ai_enriched: true
+          comments: "Incident created from {{ alert_count }} correlated OpenShift alerts with dependency tag: {{ dependency_tag }}"
+      register: snow_incident
+      retries: 3
+      delay: 5
+      until: snow_incident is succeeded
+
+    - name: Display incident creation result
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "SERVICENOW INCIDENT CREATED SUCCESSFULLY"
+          - "========================================="
+          - "Incident Number: {{ snow_incident.record.number }}"
+          - "Incident Sys ID: {{ snow_incident.record.sys_id }}"
+          - "State: {{ snow_incident.record.state }}"
+          - "Priority: {{ snow_incident.record.priority }}"
+          - "Urgency: {{ snow_incident.record.urgency }}"
+          - "Impact: {{ snow_incident.record.impact }}"
+          - "Created On: {{ snow_incident.record.sys_created_on }}"
+          - "========================================="
+          - ""
+          - "View incident in ServiceNow:"
+          - "{{ snow_instance_url }}/nav_to.do?uri=incident.do?sys_id={{ snow_incident.record.sys_id }}"
+          - ""
+          - "Incident Summary:"
+          - "• Correlated {{ alert_count }} alerts"
+          - "• Affected hosts: {{ affected_hosts }}"
+          - "• Dependency tag: {{ dependency_tag }}"
+          - "• AI analysis: {{ llm_tokens_used }} tokens"
+          - "========================================="
+
+    # ========================================================================
+    # STEP 3: Export incident details for potential downstream workflows
+    # ========================================================================
+    - name: Export incident details via set_stats
+      ansible.builtin.set_stats:
+        data:
+          snow_incident_number: "{{ snow_incident.record.number }}"
+          snow_incident_sys_id: "{{ snow_incident.record.sys_id }}"
+          snow_incident_url: "{{ snow_instance_url }}/nav_to.do?uri=incident.do?sys_id={{ snow_incident.record.sys_id }}"
+          snow_incident_state: "{{ snow_incident.record.state }}"
+          incident_created_at: "{{ ansible_date_time.iso8601 }}"
+        per_host: false
+
+    - name: Final summary
+      ansible.builtin.debug:
+        msg:
+          - "✓ Incident {{ snow_incident.record.number }} created successfully"
+          - "✓ {{ alert_count }} correlated alerts processed"
+          - "✓ AI-enhanced descriptions applied"
+          - "✓ Original alert data preserved in incident description"
+          - ""
+          - "Workflow complete!"

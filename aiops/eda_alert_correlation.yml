@@ -1,0 +1,258 @@
+---
+- name: AIOps EDA Alert Correlation and AI Analysis
+  hosts: localhost
+  gather_facts: true
+
+  vars:
+    correlated_alerts: "{{ correlated_alerts | default([]) }}"
+    llm_temperature: 0.4
+    llm_max_tokens: 1200
+
+  tasks:
+    - name: Display correlation information
+      ansible.builtin.debug:
+        msg:
+          - "========================================"
+          - "AIOps EDA Alert Correlation & Analysis"
+          - "========================================"
+          - "Number of correlated alerts: {{ correlated_alerts | length }}"
+          - "Correlation started: {{ ansible_date_time.iso8601 }}"
+          - "========================================"
+
+    - name: Validate correlated alerts
+      ansible.builtin.assert:
+        that:
+          - correlated_alerts | length > 0
+          - correlated_alerts is iterable
+        fail_msg: "No correlated alerts provided or invalid format"
+        success_msg: "Found {{ correlated_alerts | length }} correlated alerts to analyze"
+
+    # ========================================================================
+    # STEP 1: Extract key information from all alerts
+    # ========================================================================
+    - name: Extract dependency tags from alerts
+      ansible.builtin.set_fact:
+        dependency_tags: "{{ correlated_alerts | map(attribute='dependency_tag') | unique | list }}"
+        alert_severities: "{{ correlated_alerts | map(attribute='severity') | list }}"
+        alert_hosts: "{{ correlated_alerts | map(attribute='host') | unique | list }}"
+        alert_names: "{{ correlated_alerts | map(attribute='alert_name') | unique | list }}"
+
+    - name: Determine highest severity
+      ansible.builtin.set_fact:
+        incident_severity: "{{ 'critical' if 'critical' in alert_severities else ('warning' if 'warning' in alert_severities else 'info') }}"
+
+    - name: Display alert summary
+      ansible.builtin.debug:
+        msg:
+          - "Dependency Tag: {{ dependency_tags[0] }}"
+          - "Highest Severity: {{ incident_severity }}"
+          - "Affected Hosts: {{ alert_hosts | length }}"
+          - "Alert Types: {{ alert_names | join(', ') }}"
+
+    # ========================================================================
+    # STEP 2: Prepare comprehensive prompt for LLM
+    # ========================================================================
+    - name: Build alert summary for LLM
+      ansible.builtin.set_fact:
+        alerts_summary: |-
+          {% for alert in correlated_alerts %}
+          Alert {{ loop.index }}:
+          - Name: {{ alert.alert_name }}
+          - Severity: {{ alert.severity }}
+          - Host: {{ alert.host }}
+          - Namespace: {{ alert.namespace | default('N/A') }}
+          - Message: {{ alert.message }}
+          - Timestamp: {{ alert.timestamp }}
+          {% if alert.alert_details is defined %}
+          - Details: {{ alert.alert_details | to_nice_json }}
+          {% endif %}
+
+          {% endfor %}
+
+    - name: Prepare AI analysis prompt
+      ansible.builtin.set_fact:
+        analysis_prompt: |-
+          You are an OpenShift/Kubernetes operations expert analyzing correlated alerts from a production cluster.
+
+          CORRELATED ALERTS ({{ correlated_alerts | length }} total):
+          {{ alerts_summary }}
+
+          Correlation Key: {{ dependency_tags[0] }}
+          Highest Severity: {{ incident_severity }}
+
+          Analyze these correlated alerts and provide a comprehensive incident summary:
+
+          1. SHORT DESCRIPTION (max 100 characters):
+             Create a concise incident title that captures the core issue affecting the service.
+
+          2. DETAILED DESCRIPTION:
+             - What is the primary issue?
+             - Which services/components are affected?
+             - What is the timeline of events (based on timestamps)?
+             - What is the likely relationship between these alerts?
+
+          3. ROOT CAUSE ANALYSIS:
+             - What is the most likely root cause?
+             - Are these alerts symptoms of a single underlying issue?
+             - What cascade effects are visible?
+
+          4. IMPACT ASSESSMENT:
+             - Business impact (user-facing services affected?)
+             - Technical impact (infrastructure, performance)
+             - Urgency level
+
+          5. RECOMMENDED ACTIONS:
+             - Immediate actions to stabilize
+             - Diagnostic steps to confirm root cause
+             - Escalation criteria
+
+          Format your response as structured sections. Be technical but clear.
+
+    # ========================================================================
+    # STEP 3: Call LLM API for analysis
+    # ========================================================================
+    - name: Call LLM API for correlated alert analysis
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'LLM_API_KEY') }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          model: "{{ lookup('env', 'LLM_MODEL') }}"
+          messages:
+            - role: system
+              content: "You are an expert OpenShift/Kubernetes SRE analyzing production incidents. Provide clear, actionable analysis."
+            - role: user
+              content: "{{ analysis_prompt }}"
+          temperature: "{{ llm_temperature }}"
+          max_tokens: "{{ llm_max_tokens }}"
+        status_code: 200
+        timeout: 90
+        validate_certs: false
+      register: llm_response
+
+    - name: Extract AI analysis
+      ansible.builtin.set_fact:
+        ai_analysis_full: "{{ llm_response.json.choices[0].message.content | trim }}"
+        llm_tokens_used: "{{ llm_response.json.usage.total_tokens }}"
+
+    # ========================================================================
+    # STEP 4: Generate short description (separate call for focused output)
+    # ========================================================================
+    - name: Prepare short description prompt
+      ansible.builtin.set_fact:
+        short_desc_prompt: |-
+          Based on these {{ correlated_alerts | length }} correlated OpenShift alerts, create a concise incident title (max 100 characters):
+
+          Alert Types: {{ alert_names | join(', ') }}
+          Severity: {{ incident_severity }}
+          Affected Service: {{ dependency_tags[0] }}
+
+          Key Messages:
+          {% for alert in correlated_alerts | selectattr('severity', 'equalto', 'critical') %}
+          - {{ alert.alert_name }}: {{ alert.message[:80] }}
+          {% endfor %}
+
+          Create a clear, technical incident title that summarizes the issue. Just return the title, nothing else.
+
+    - name: Call LLM API for short description
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'LLM_API_KEY') }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          model: "{{ lookup('env', 'LLM_MODEL') }}"
+          messages:
+            - role: system
+              content: "You are an expert at creating concise incident titles. Return only the title, no explanations."
+            - role: user
+              content: "{{ short_desc_prompt }}"
+          temperature: 0.3
+          max_tokens: 100
+        status_code: 200
+        timeout: 60
+        validate_certs: false
+      register: short_desc_response
+
+    - name: Extract short description
+      ansible.builtin.set_fact:
+        ai_short_description: "{{ short_desc_response.json.choices[0].message.content | trim }}"
+
+    # ========================================================================
+    # STEP 5: Prepare structured data for ServiceNow incident
+    # ========================================================================
+    - name: Build alert details table for SNOW
+      ansible.builtin.set_fact:
+        alert_details_table: |-
+          ========================================
+          CORRELATED ALERTS ({{ correlated_alerts | length }} total)
+          ========================================
+          Dependency Tag: {{ dependency_tags[0] }}
+          Correlation Time: {{ ansible_date_time.iso8601 }}
+          Highest Severity: {{ incident_severity }}
+
+          {% for alert in correlated_alerts %}
+          Alert {{ loop.index }}: {{ alert.alert_name }}
+          -------------------
+          Severity: {{ alert.severity }}
+          Host: {{ alert.host }}
+          Namespace: {{ alert.namespace | default('N/A') }}
+          Timestamp: {{ alert.timestamp }}
+          Message: {{ alert.message }}
+          {% if alert.pod_name is defined %}
+          Pod: {{ alert.pod_name }}
+          {% endif %}
+          {% if alert.container is defined %}
+          Container: {{ alert.container }}
+          {% endif %}
+          {% if alert.alert_details is defined %}
+          Details: {{ alert.alert_details | to_nice_json }}
+          {% endif %}
+
+          {% endfor %}
+
+    - name: Calculate ServiceNow priority
+      ansible.builtin.set_fact:
+        snow_priority: "{{ '1' if incident_severity == 'critical' else '2' }}"
+        snow_urgency: "{{ '1' if incident_severity == 'critical' else '2' }}"
+        snow_impact: "{{ '1' if alert_hosts | length > 3 else '2' }}"
+
+    # ========================================================================
+    # STEP 6: Pass data to next job in workflow using set_stats
+    # ========================================================================
+    - name: Export data for ServiceNow incident creation
+      ansible.builtin.set_stats:
+        data:
+          ai_short_description: "{{ ai_short_description }}"
+          ai_full_analysis: "{{ ai_analysis_full }}"
+          alert_details_table: "{{ alert_details_table }}"
+          incident_severity: "{{ incident_severity }}"
+          snow_priority: "{{ snow_priority }}"
+          snow_urgency: "{{ snow_urgency }}"
+          snow_impact: "{{ snow_impact }}"
+          dependency_tag: "{{ dependency_tags[0] }}"
+          alert_count: "{{ correlated_alerts | length }}"
+          affected_hosts: "{{ alert_hosts | join(', ') }}"
+          llm_tokens_used: "{{ llm_tokens_used }}"
+        per_host: false
+
+    - name: Display analysis summary
+      ansible.builtin.debug:
+        msg:
+          - "========================================"
+          - "AI ANALYSIS COMPLETE"
+          - "========================================"
+          - "Short Description: {{ ai_short_description }}"
+          - "Alert Count: {{ correlated_alerts | length }}"
+          - "Severity: {{ incident_severity }}"
+          - "SNOW Priority: {{ snow_priority }}"
+          - "LLM Tokens Used: {{ llm_tokens_used }}"
+          - "========================================"
+          - ""
+          - "Data exported via set_stats for next workflow job"
+          - "Next: Create ServiceNow incident with AI-enhanced content"
