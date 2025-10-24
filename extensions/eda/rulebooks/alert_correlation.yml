@@ -9,26 +9,7 @@
 
   rules:
     # ========================================================================
-    # Rule 1: Process single alert (immediate correlation)
-    # ========================================================================
-    - name: Process individual alert
-      condition: event.payload.dependency_tag is defined and event.payload.alert_id is defined
-      throttle:
-        once_within: 30 seconds
-        group_by_attributes:
-          - event.payload.dependency_tag
-      action:
-        run_job_template:
-          name: "AIOps: EDA Single Alert Storage"
-          organization: "AIOps Demos"
-          job_args:
-            extra_vars:
-              alert_data: "{{ event.payload }}"
-              dependency_tag: "{{ event.payload.dependency_tag }}"
-              received_at: "{{ event.meta.received_at }}"
-
-    # ========================================================================
-    # Rule 2: Process batch of correlated alerts (recommended approach)
+    # Rule 1: Process batch of correlated alerts (main use case)
     # ========================================================================
     - name: Process batch of correlated alerts
       condition: >
@@ -46,7 +27,7 @@
               dependency_tag: "{{ event.payload.dependency_tag }}"
 
     # ========================================================================
-    # Rule 3: Generic alert catch-all with logging
+    # Rule 2: Generic alert catch-all with logging
     # ========================================================================
     - name: Log unmatched alerts
       condition: event.payload is defined
@@ -55,7 +36,7 @@
           msg: "Received alert event: {{ event.payload }}"
 
     # ========================================================================
-    # Rule 4: Health check endpoint
+    # Rule 3: Health check endpoint
     # ========================================================================
     - name: Health check response
       condition: event.payload.action is defined and event.payload.action == "health_check"
