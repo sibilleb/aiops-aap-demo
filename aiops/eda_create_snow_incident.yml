@@ -11,19 +11,6 @@
       failed_when: false
 
   vars:
-    # These variables are passed from the previous workflow job via set_stats
-    ai_short_description: "{{ ai_short_description | default('') }}"
-    ai_full_analysis: "{{ ai_full_analysis | default('') }}"
-    alert_details_table: "{{ alert_details_table | default('') }}"
-    incident_severity: "{{ incident_severity | default('warning') }}"
-    snow_priority: "{{ snow_priority | default('2') }}"
-    snow_urgency: "{{ snow_urgency | default('2') }}"
-    snow_impact: "{{ snow_impact | default('2') }}"
-    dependency_tag: "{{ dependency_tag | default('') }}"
-    alert_count: "{{ alert_count | default(0) }}"
-    affected_hosts: "{{ affected_hosts | default('') }}"
-    llm_tokens_used: "{{ llm_tokens_used | default(0) }}"
-
     # ServiceNow connection details from credentials
     snow_instance_url: "{{ lookup('env', 'SNOW_INSTANCE') }}"
     snow_username: "{{ lookup('env', 'SNOW_USERNAME') }}"
@@ -31,6 +18,9 @@
 
     # Alert Integration caller ID
     alert_integration_caller: "ca93c3c183f0325021ee47447daad34f"
+
+    # NOTE: Variables from the previous workflow job (ai_short_description, ai_full_analysis, etc.)
+    #       are automatically available via set_stats and do not need to be redefined here.
 
   tasks:
     - name: Display incident creation information
