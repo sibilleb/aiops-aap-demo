@@ -84,28 +84,34 @@
           ========================================
 
     # ========================================================================
-    # STEP 2: Create ServiceNow incident using ITSM collection
+    # STEP 2: Create ServiceNow incident using REST API
     # ========================================================================
-    - name: Create incident in ServiceNow using ITSM module
-      servicenow.itsm.incident:
-        instance:
-          host: "{{ snow_instance_url | regex_replace('https://', '') }}"
-          username: "{{ snow_username }}"
-          password: "{{ snow_password }}"
-        state: new
-        short_description: "{{ ai_short_description }}"
-        description: "{{ incident_description }}"
-        caller: "{{ alert_integration_caller }}"
-        urgency: "{{ 'high' if snow_urgency == '1' else 'medium' }}"
-        impact: "{{ 'high' if snow_impact == '1' else 'medium' }}"
-        priority: "{{ 'critical' if snow_priority == '1' else 'high' }}"
-        other:
+    - name: Create incident in ServiceNow using REST API
+      ansible.builtin.uri:
+        url: "{{ snow_instance_url }}/api/now/table/incident"
+        method: POST
+        user: "{{ snow_username }}"
+        password: "{{ snow_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers:
+          Content-Type: "application/json"
+          Accept: "application/json"
+        body_format: json
+        body:
+          short_description: "{{ ai_short_description }}"
+          description: "{{ incident_description }}"
+          caller_id: "{{ alert_integration_caller }}"
+          urgency: "{{ '1' if snow_urgency == '1' else '2' }}"
+          impact: "{{ '1' if snow_impact == '1' else '2' }}"
+          priority: "{{ '1' if snow_priority == '1' else '2' }}"
           u_ai_enriched: true
           comments: "Incident created from {{ alert_count }} correlated OpenShift alerts with dependency tag: {{ dependency_tag }}"
+        status_code: 201
       register: snow_incident
       retries: 3
       delay: 5
-      until: snow_incident is succeeded
+      until: snow_incident.status == 201
 
     - name: Display incident creation result
       ansible.builtin.debug:
@@ -113,17 +119,17 @@
           - "========================================="
           - "SERVICENOW INCIDENT CREATED SUCCESSFULLY"
           - "========================================="
-          - "Incident Number: {{ snow_incident.record.number }}"
-          - "Incident Sys ID: {{ snow_incident.record.sys_id }}"
-          - "State: {{ snow_incident.record.state }}"
-          - "Priority: {{ snow_incident.record.priority }}"
-          - "Urgency: {{ snow_incident.record.urgency }}"
-          - "Impact: {{ snow_incident.record.impact }}"
-          - "Created On: {{ snow_incident.record.sys_created_on }}"
+          - "Incident Number: {{ snow_incident.json.result.number }}"
+          - "Incident Sys ID: {{ snow_incident.json.result.sys_id }}"
+          - "State: {{ snow_incident.json.result.state }}"
+          - "Priority: {{ snow_incident.json.result.priority }}"
+          - "Urgency: {{ snow_incident.json.result.urgency }}"
+          - "Impact: {{ snow_incident.json.result.impact }}"
+          - "Created On: {{ snow_incident.json.result.sys_created_on }}"
           - "========================================="
           - ""
           - "View incident in ServiceNow:"
-          - "{{ snow_instance_url }}/nav_to.do?uri=incident.do?sys_id={{ snow_incident.record.sys_id }}"
+          - "{{ snow_instance_url }}/nav_to.do?uri=incident.do?sys_id={{ snow_incident.json.result.sys_id }}"
           - ""
           - "Incident Summary:"
           - "• Correlated {{ alert_count }} alerts"
@@ -138,17 +144,17 @@
     - name: Export incident details via set_stats
       ansible.builtin.set_stats:
         data:
-          snow_incident_number: "{{ snow_incident.record.number }}"
-          snow_incident_sys_id: "{{ snow_incident.record.sys_id }}"
-          snow_incident_url: "{{ snow_instance_url }}/nav_to.do?uri=incident.do?sys_id={{ snow_incident.record.sys_id }}"
-          snow_incident_state: "{{ snow_incident.record.state }}"
+          snow_incident_number: "{{ snow_incident.json.result.number }}"
+          snow_incident_sys_id: "{{ snow_incident.json.result.sys_id }}"
+          snow_incident_url: "{{ snow_instance_url }}/nav_to.do?uri=incident.do?sys_id={{ snow_incident.json.result.sys_id }}"
+          snow_incident_state: "{{ snow_incident.json.result.state }}"
           incident_created_at: "{{ ansible_date_time.iso8601 }}"
         per_host: false
 
     - name: Final summary
       ansible.builtin.debug:
         msg:
-          - "✓ Incident {{ snow_incident.record.number }} created successfully"
+          - "✓ Incident {{ snow_incident.json.result.number }} created successfully"
           - "✓ {{ alert_count }} correlated alerts processed"
           - "✓ AI-enhanced descriptions applied"
           - "✓ Original alert data preserved in incident description"
