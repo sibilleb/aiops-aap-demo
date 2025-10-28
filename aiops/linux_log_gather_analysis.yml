@@ -1,0 +1,281 @@
+---
+- name: AIOps Linux Log Gather & AI Analysis
+  hosts: all
+  gather_facts: true
+
+  vars:
+    # Variables passed from EDA webhook
+    target_host: "{{ target_host | default(inventory_hostname) }}"
+    log_file_path: "{{ log_file_path | default('/var/log/aiops/app.log') }}"
+    log_hours_back: "{{ log_hours_back | default(1) }}"
+    alert_severity: "{{ alert_severity | default('warning') }}"
+
+    # LLM Configuration
+    llm_temperature: 0.4
+    llm_max_tokens: 1500
+
+  tasks:
+    - name: Display log analysis information
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "AIOps Linux Log Analysis"
+          - "========================================="
+          - "Target Host: {{ target_host }}"
+          - "Log File: {{ log_file_path }}"
+          - "Time Range: Last {{ log_hours_back }} hour(s)"
+          - "Alert Severity: {{ alert_severity }}"
+          - "Analysis Started: {{ ansible_date_time.iso8601 }}"
+          - "========================================="
+
+    # ========================================================================
+    # STEP 1: Gather logs from remote server (last X hours)
+    # ========================================================================
+    - name: Calculate timestamp for log filtering (X hours ago)
+      ansible.builtin.set_fact:
+        cutoff_time: "{{ '%Y-%m-%d %H:%M:%S' | strftime(ansible_date_time.epoch | int - (log_hours_back | int * 3600)) }}"
+
+    - name: Display cutoff time
+      ansible.builtin.debug:
+        msg: "Gathering logs since: {{ cutoff_time }}"
+
+    - name: Check if log file exists on target server
+      ansible.builtin.stat:
+        path: "{{ log_file_path }}"
+      register: log_file_stat
+
+    - name: Fail if log file does not exist
+      ansible.builtin.fail:
+        msg: "Log file {{ log_file_path }} does not exist on {{ target_host }}"
+      when: not log_file_stat.stat.exists
+
+    - name: Gather log content from target server
+      ansible.builtin.slurp:
+        src: "{{ log_file_path }}"
+      register: log_file_raw
+
+    - name: Decode log content
+      ansible.builtin.set_fact:
+        full_log_content: "{{ log_file_raw.content | b64decode }}"
+
+    - name: Filter logs to last X hours
+      ansible.builtin.set_fact:
+        recent_log_content: "{{ full_log_content | regex_findall('(' + cutoff_time[:10] + '.*)', multiline=True) | join('\n') }}"
+
+    - name: Fallback if timestamp filter didn't work - use tail
+      ansible.builtin.set_fact:
+        recent_log_content: "{{ full_log_content.split('\n')[-500:] | join('\n') }}"
+      when: recent_log_content | length < 100
+
+    - name: Display log statistics
+      ansible.builtin.debug:
+        msg:
+          - "Log file size: {{ log_file_stat.stat.size }} bytes"
+          - "Total lines in file: {{ full_log_content.split('\n') | length }}"
+          - "Filtered log content: {{ recent_log_content | length }} characters"
+          - "First 300 characters:"
+          - "{{ recent_log_content[:300] }}..."
+
+    # ========================================================================
+    # STEP 2: Prepare comprehensive AI analysis prompt
+    # ========================================================================
+    - name: Count log severity levels
+      ansible.builtin.set_fact:
+        critical_count: "{{ recent_log_content | regex_findall('CRITICAL', ignorecase=True) | length }}"
+        error_count: "{{ recent_log_content | regex_findall('ERROR', ignorecase=True) | length }}"
+        warning_count: "{{ recent_log_content | regex_findall('WARN', ignorecase=True) | length }}"
+
+    - name: Prepare AI analysis prompt
+      ansible.builtin.set_fact:
+        analysis_prompt: |-
+          You are a Linux systems operations expert analyzing application logs from a production server.
+
+          SERVER CONTEXT:
+          - Hostname: {{ target_host }}
+          - Log File: {{ log_file_path }}
+          - Time Range: Last {{ log_hours_back }} hour(s)
+          - Timestamp: {{ ansible_date_time.iso8601 }}
+
+          LOG STATISTICS:
+          - CRITICAL entries: {{ critical_count }}
+          - ERROR entries: {{ error_count }}
+          - WARNING entries: {{ warning_count }}
+
+          APPLICATION LOGS:
+          {{ recent_log_content }}
+
+          Provide a comprehensive analysis:
+
+          1. SHORT DESCRIPTION (max 100 characters):
+             Create a concise incident title summarizing the primary issue.
+
+          2. INCIDENT SUMMARY:
+             - What is the main problem indicated by these logs?
+             - When did it start and what is the progression?
+             - What are the key error messages or patterns?
+
+          3. ROOT CAUSE ANALYSIS:
+             - What is the likely root cause based on log patterns?
+             - Are there cascading failures visible in the logs?
+             - What system components are affected?
+
+          4. IMPACT ASSESSMENT:
+             - What is the business/user impact?
+             - Are services degraded or completely unavailable?
+             - Is this isolated to one server or potentially broader?
+
+          5. RECOMMENDED ACTIONS:
+             - Immediate steps to stabilize the system
+             - Diagnostic commands to run for more information
+             - When to escalate this incident
+
+          Format your response with clear sections. Be technical but actionable.
+
+    # ========================================================================
+    # STEP 3: Call LLM API for comprehensive log analysis
+    # ========================================================================
+    - name: Call LLM API for log analysis
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'LLM_API_KEY') }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          model: "{{ lookup('env', 'LLM_MODEL') }}"
+          messages:
+            - role: system
+              content: "You are an expert Linux systems administrator and SRE analyzing production server logs. Provide clear, actionable incident analysis."
+            - role: user
+              content: "{{ analysis_prompt }}"
+          temperature: "{{ llm_temperature }}"
+          max_tokens: "{{ llm_max_tokens }}"
+        status_code: 200
+        timeout: 90
+        validate_certs: false
+      register: llm_response
+
+    - name: Extract AI analysis
+      ansible.builtin.set_fact:
+        ai_analysis_full: "{{ llm_response.json.choices[0].message.content | trim }}"
+        llm_tokens_used: "{{ llm_response.json.usage.total_tokens }}"
+
+    # ========================================================================
+    # STEP 4: Generate short description (separate focused call)
+    # ========================================================================
+    - name: Prepare short description prompt
+      ansible.builtin.set_fact:
+        short_desc_prompt: |-
+          Based on these Linux server logs, create a concise incident title (max 100 characters):
+
+          Server: {{ target_host }}
+          Key Issues:
+          - {{ critical_count }} CRITICAL events
+          - {{ error_count }} ERROR events
+          - {{ warning_count }} WARNING events
+
+          Sample errors:
+          {{ recent_log_content | regex_findall('(CRITICAL|ERROR).*', multiline=True) | first | default('No critical errors') }}
+
+          Create a clear, technical incident title. Just return the title, nothing else.
+
+    - name: Call LLM API for short description
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'LLM_API_KEY') }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          model: "{{ lookup('env', 'LLM_MODEL') }}"
+          messages:
+            - role: system
+              content: "You create concise incident titles. Return only the title, no explanations."
+            - role: user
+              content: "{{ short_desc_prompt }}"
+          temperature: 0.3
+          max_tokens: 100
+        status_code: 200
+        timeout: 60
+        validate_certs: false
+      register: short_desc_response
+
+    - name: Extract short description
+      ansible.builtin.set_fact:
+        ai_short_description: "{{ short_desc_response.json.choices[0].message.content | trim }}"
+
+    # ========================================================================
+    # STEP 5: Prepare structured data for ServiceNow incident
+    # ========================================================================
+    - name: Build log details table for ServiceNow
+      ansible.builtin.set_fact:
+        alert_details_table: |-
+          =========================================
+          LINUX SERVER LOG ALERT
+          =========================================
+          Server: {{ target_host }}
+          Log File: {{ log_file_path }}
+          Time Range: Last {{ log_hours_back }} hour(s)
+          Analysis Time: {{ ansible_date_time.iso8601 }}
+          Alert Severity: {{ alert_severity }}
+
+          LOG STATISTICS:
+          - CRITICAL Events: {{ critical_count }}
+          - ERROR Events: {{ error_count }}
+          - WARNING Events: {{ warning_count }}
+          - Total Log Size: {{ log_file_stat.stat.size }} bytes
+
+          RECENT LOG SAMPLE (last 50 lines):
+          {{ recent_log_content.split('\n')[-50:] | join('\n') }}
+
+          =========================================
+
+    - name: Determine incident severity
+      ansible.builtin.set_fact:
+        incident_severity: "{{ 'critical' if (critical_count | int) > 5 or alert_severity == 'critical' else 'warning' }}"
+
+    - name: Calculate ServiceNow priority fields
+      ansible.builtin.set_fact:
+        snow_priority: "{{ '1' if incident_severity == 'critical' else '2' }}"
+        snow_urgency: "{{ '1' if incident_severity == 'critical' else '2' }}"
+        snow_impact: "{{ '1' if (error_count | int) > 50 else '2' }}"
+
+    # ========================================================================
+    # STEP 6: Export data for next workflow job (ServiceNow incident creation)
+    # ========================================================================
+    - name: Export data for ServiceNow incident creation
+      ansible.builtin.set_stats:
+        data:
+          ai_short_description: "{{ ai_short_description }}"
+          ai_full_analysis: "{{ ai_analysis_full }}"
+          alert_details_table: "{{ alert_details_table }}"
+          incident_severity: "{{ incident_severity }}"
+          snow_priority: "{{ snow_priority }}"
+          snow_urgency: "{{ snow_urgency }}"
+          snow_impact: "{{ snow_impact }}"
+          dependency_tag: "{{ target_host }}"
+          alert_count: "1"
+          affected_hosts: "{{ target_host }}"
+          llm_tokens_used: "{{ llm_tokens_used }}"
+        per_host: false
+
+    - name: Display analysis summary
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "AI ANALYSIS COMPLETE"
+          - "========================================="
+          - "Short Description: {{ ai_short_description }}"
+          - "Severity: {{ incident_severity }}"
+          - "SNOW Priority: {{ snow_priority }}"
+          - "Log Events Analyzed:"
+          - "  - Critical: {{ critical_count }}"
+          - "  - Errors: {{ error_count }}"
+          - "  - Warnings: {{ warning_count }}"
+          - "LLM Tokens Used: {{ llm_tokens_used }}"
+          - "========================================="
+          - ""
+          - "Data exported via set_stats for next workflow job"
+          - "Next: Create ServiceNow incident with AI-enhanced content"

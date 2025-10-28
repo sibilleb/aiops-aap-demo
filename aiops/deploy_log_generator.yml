@@ -1,0 +1,102 @@
+---
+- name: Deploy AIOps Log Generator to Linux Server
+  hosts: all
+  become: yes
+  gather_facts: true
+
+  tasks:
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "AIOps Log Generator Deployment"
+          - "=============================================="
+          - "Target Host: {{ inventory_hostname }}"
+          - "Log Directory: /var/log/aiops"
+          - "Service: aiops-log-generator"
+          - "=============================================="
+
+    - name: Create log directory
+      ansible.builtin.file:
+        path: /var/log/aiops
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Copy log generator script to server
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../files/log_generators/db_connection_crisis.sh"
+        dest: /usr/local/bin/aiops-log-generator.sh
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Copy systemd service file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../files/log_generators/aiops-log-generator.service"
+        dest: /etc/systemd/system/aiops-log-generator.service
+        mode: '0644'
+        owner: root
+        group: root
+      notify: Reload systemd
+
+    - name: Enable and start aiops-log-generator service
+      ansible.builtin.systemd:
+        name: aiops-log-generator
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Wait for service to start
+      ansible.builtin.pause:
+        seconds: 3
+
+    - name: Check service status
+      ansible.builtin.systemd:
+        name: aiops-log-generator
+      register: service_status
+
+    - name: Verify log file is being created
+      ansible.builtin.wait_for:
+        path: /var/log/aiops/app.log
+        timeout: 10
+      register: log_file_check
+
+    - name: Display service status
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "Deployment Complete!"
+          - "=============================================="
+          - "Service Status: {{ service_status.status.ActiveState }}"
+          - "Service Active Since: {{ service_status.status.ActiveEnterTimestamp | default('N/A') }}"
+          - "Log File: /var/log/aiops/app.log"
+          - "=============================================="
+          - ""
+          - "To view logs:"
+          - "  tail -f /var/log/aiops/app.log"
+          - ""
+          - "To check service status:"
+          - "  systemctl status aiops-log-generator"
+          - ""
+          - "To view service logs:"
+          - "  journalctl -u aiops-log-generator -f"
+          - "=============================================="
+
+    - name: Show sample log entries
+      ansible.builtin.command:
+        cmd: tail -n 10 /var/log/aiops/app.log
+      register: sample_logs
+      changed_when: false
+
+    - name: Display sample log entries
+      ansible.builtin.debug:
+        msg:
+          - "Sample log entries:"
+          - "{{ sample_logs.stdout_lines }}"
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes

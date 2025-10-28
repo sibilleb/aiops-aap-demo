@@ -1,0 +1,20 @@
+[Unit]
+Description=AIOps Log Generator - Database Connection Crisis Simulator
+After=network.target
+Documentation=https://github.com/sibilleb/aiops-aap-demo
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/aiops-log-generator.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aiops-log-generator
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
