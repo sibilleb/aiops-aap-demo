@@ -1,0 +1,20 @@
+[Unit]
+Description=OpenShift Container Log Generator - Payment App Simulator
+After=network.target
+Documentation=https://github.com/sibilleb/aiops-aap-demo
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/openshift-log-generator.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=openshift-log-generator
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

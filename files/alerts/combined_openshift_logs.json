@@ -1,0 +1,177 @@
+{
+  "description": "Combined OpenShift alerts + container log analysis",
+  "scenario": "Payment service cluster with cascading failures and log correlation",
+  "correlation_key": "payment-app-cluster-prod",
+  "correlated_alerts": [
+    {
+      "alert_id": "alert-001",
+      "dependency_tag": "payment-app-cluster-prod",
+      "host": "ocp-worker-03.prod.example.com",
+      "alert_name": "PodCrashLooping",
+      "severity": "critical",
+      "namespace": "production",
+      "pod_name": "payment-service-7d8f9c4-xz2p9",
+      "container": "payment-api",
+      "message": "Pod payment-service-7d8f9c4-xz2p9 is in CrashLoopBackOff state. Container has restarted 12 times in the last 5 minutes.",
+      "timestamp": "2025-10-24T16:30:00.123Z",
+      "labels": {
+        "app": "payment-service",
+        "environment": "production",
+        "tier": "backend",
+        "version": "v2.3.1"
+      },
+      "annotations": {
+        "description": "The payment-api container is crash looping",
+        "summary": "CrashLoopBackOff detected in production namespace",
+        "runbook_url": "https://docs.example.com/runbooks/crashloop"
+      },
+      "alert_details": {
+        "restart_count": 12,
+        "last_exit_code": 137,
+        "last_exit_reason": "Error",
+        "container_state": "Waiting"
+      }
+    },
+    {
+      "alert_id": "alert-002",
+      "dependency_tag": "payment-app-cluster-prod",
+      "host": "ocp-worker-03.prod.example.com",
+      "alert_name": "NodeMemoryPressure",
+      "severity": "warning",
+      "namespace": "kube-system",
+      "node_name": "ocp-worker-03.prod.example.com",
+      "message": "Node ocp-worker-03 is experiencing memory pressure. Available memory is below 10% threshold.",
+      "timestamp": "2025-10-24T16:30:15.456Z",
+      "labels": {
+        "node": "ocp-worker-03",
+        "environment": "production",
+        "zone": "us-east-1a"
+      },
+      "annotations": {
+        "description": "Node memory usage is critically high",
+        "summary": "Memory pressure detected on worker node",
+        "runbook_url": "https://docs.example.com/runbooks/memory-pressure"
+      },
+      "alert_details": {
+        "memory_used_percent": 94.2,
+        "memory_available_mb": 512,
+        "memory_total_mb": 8192,
+        "affected_pods": 23
+      }
+    },
+    {
+      "alert_id": "alert-003",
+      "dependency_tag": "payment-app-cluster-prod",
+      "host": "ocp-worker-05.prod.example.com",
+      "alert_name": "ImagePullBackOff",
+      "severity": "critical",
+      "namespace": "production",
+      "pod_name": "payment-service-7d8f9c4-kl8m3",
+      "container": "payment-api",
+      "message": "Failed to pull image 'registry.example.com/payment-service:v2.3.1' for pod payment-service-7d8f9c4-kl8m3. Authentication required.",
+      "timestamp": "2025-10-24T16:30:22.789Z",
+      "labels": {
+        "app": "payment-service",
+        "environment": "production",
+        "tier": "backend",
+        "version": "v2.3.1"
+      },
+      "annotations": {
+        "description": "Cannot pull container image from registry",
+        "summary": "ImagePullBackOff in production namespace",
+        "runbook_url": "https://docs.example.com/runbooks/image-pull"
+      },
+      "alert_details": {
+        "image": "registry.example.com/payment-service:v2.3.1",
+        "registry": "registry.example.com",
+        "error": "unauthorized: authentication required",
+        "pull_attempts": 5
+      }
+    },
+    {
+      "alert_id": "alert-004",
+      "dependency_tag": "payment-app-cluster-prod",
+      "host": "ocp-master-01.prod.example.com",
+      "alert_name": "DeploymentReplicasMismatch",
+      "severity": "warning",
+      "namespace": "production",
+      "deployment_name": "payment-service",
+      "message": "Deployment payment-service has 2 available replicas but 5 desired replicas. 3 replicas are unavailable.",
+      "timestamp": "2025-10-24T16:30:35.012Z",
+      "labels": {
+        "app": "payment-service",
+        "environment": "production",
+        "tier": "backend"
+      },
+      "annotations": {
+        "description": "Deployment is not meeting desired replica count",
+        "summary": "Insufficient replicas for payment-service deployment",
+        "runbook_url": "https://docs.example.com/runbooks/replicas"
+      },
+      "alert_details": {
+        "desired_replicas": 5,
+        "available_replicas": 2,
+        "unavailable_replicas": 3,
+        "ready_replicas": 2,
+        "updated_replicas": 2
+      }
+    },
+    {
+      "alert_id": "alert-005",
+      "dependency_tag": "payment-app-cluster-prod",
+      "host": "ocp-master-01.prod.example.com",
+      "alert_name": "ServiceEndpointDown",
+      "severity": "critical",
+      "namespace": "production",
+      "service_name": "payment-service",
+      "message": "Service payment-service has 0 healthy endpoints. Expected at least 3 endpoints to be healthy.",
+      "timestamp": "2025-10-24T16:30:45.345Z",
+      "labels": {
+        "app": "payment-service",
+        "environment": "production",
+        "tier": "backend"
+      },
+      "annotations": {
+        "description": "No healthy endpoints available for service",
+        "summary": "Service endpoints are unavailable",
+        "runbook_url": "https://docs.example.com/runbooks/endpoints"
+      },
+      "alert_details": {
+        "healthy_endpoints": 0,
+        "expected_endpoints": 5,
+        "service_port": 8080,
+        "last_health_check": "2025-10-24T16:30:40Z",
+        "health_check_failures": 8
+      }
+    }
+  ],
+  "log_alert": {
+    "alert_id": "log-alert-001",
+    "alert_type": "container_log_analysis",
+    "dependency_tag": "payment-app-cluster-prod",
+    "hostname": "node1",
+    "log_path": "/var/log/containers/payment-app-pod123-container.log",
+    "hours_back": 1,
+    "severity": "critical",
+    "timestamp": "2025-10-24T16:30:50.000Z",
+    "message": "Container logs show critical errors related to payment app pod failures. Analysis required to correlate with cluster alerts.",
+    "alert_details": {
+      "pod_name": "payment-app-pod123",
+      "container_name": "payment-app",
+      "namespace": "payment-prod",
+      "log_file_path": "/var/log/containers/payment-app-pod123-container.log",
+      "correlation_window": "1 hour",
+      "expected_log_patterns": [
+        "Database connection pool exhausted",
+        "OOMKill candidate",
+        "HTTP 500 Internal Server Error",
+        "Connection refused: tcp://postgres-payment-db:5432"
+      ]
+    },
+    "annotations": {
+      "description": "Container log analysis requested for payment app pod correlation",
+      "summary": "Log alert triggered for payment-app-pod123 on node1",
+      "workflow_action": "gather_logs_and_analyze"
+    }
+  }
+}

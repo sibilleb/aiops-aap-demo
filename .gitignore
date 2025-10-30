@@ -5,6 +5,9 @@
 # Local testing and sensitive data
 local-testing/
 
+# Execution environment build (contains credentials in build scripts)
+execution-environment/
+
 # Claude Code Configuration and Session Files
 .claude/
 CLAUDE.md

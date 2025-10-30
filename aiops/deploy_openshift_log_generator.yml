@@ -1,0 +1,103 @@
+---
+- name: Deploy OpenShift Container Log Generator to Demo Server
+  hosts: all
+  become: yes
+  gather_facts: true
+
+  tasks:
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "OpenShift Container Log Generator Deployment"
+          - "=============================================="
+          - "Target Host: {{ inventory_hostname }}"
+          - "Log Directory: /var/log/containers"
+          - "Service: openshift-log-generator"
+          - "Simulated Pod: payment-app-pod123"
+          - "=============================================="
+
+    - name: Create containers log directory
+      ansible.builtin.file:
+        path: /var/log/containers
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Copy OpenShift log generator script to server
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../files/log_generators/openshift_container_log.sh"
+        dest: /usr/local/bin/openshift-log-generator.sh
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Copy systemd service file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../files/log_generators/openshift-log-generator.service"
+        dest: /etc/systemd/system/openshift-log-generator.service
+        mode: '0644'
+        owner: root
+        group: root
+      notify: Reload systemd
+
+    - name: Enable and start openshift-log-generator service
+      ansible.builtin.systemd:
+        name: openshift-log-generator
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Wait for service to start
+      ansible.builtin.pause:
+        seconds: 3
+
+    - name: Check service status
+      ansible.builtin.systemd:
+        name: openshift-log-generator
+      register: service_status
+
+    - name: Verify log file is being created
+      ansible.builtin.wait_for:
+        path: /var/log/containers/payment-app-pod123-container.log
+        timeout: 10
+      register: log_file_check
+
+    - name: Display service status
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "Deployment Complete!"
+          - "=============================================="
+          - "Service Status: {{ service_status.status.ActiveState }}"
+          - "Service Active Since: {{ service_status.status.ActiveEnterTimestamp | default('N/A') }}"
+          - "Log File: /var/log/containers/payment-app-pod123-container.log"
+          - "=============================================="
+          - ""
+          - "To view logs:"
+          - "  tail -f /var/log/containers/payment-app-pod123-container.log"
+          - ""
+          - "To check service status:"
+          - "  systemctl status openshift-log-generator"
+          - ""
+          - "To view service logs:"
+          - "  journalctl -u openshift-log-generator -f"
+          - "=============================================="
+
+    - name: Show sample log entries
+      ansible.builtin.command:
+        cmd: tail -n 10 /var/log/containers/payment-app-pod123-container.log
+      register: sample_logs
+      changed_when: false
+
+    - name: Display sample log entries
+      ansible.builtin.debug:
+        msg:
+          - "Sample OpenShift container log entries:"
+          - "{{ sample_logs.stdout_lines }}"
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes

@@ -1,0 +1,191 @@
+---
+- name: Gather OpenShift Container Logs and Run AI Analysis
+  hosts: all
+  gather_facts: true
+  vars:
+    log_file_path: "/var/log/containers/payment-app-pod123-container.log"
+    log_hours_back: 1
+    dependency_tag: "payment-app-cluster-prod"
+    target_host: "{{ inventory_hostname }}"
+
+  tasks:
+    - name: Display log gathering information
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "OpenShift Container Log Gathering & AI Analysis"
+          - "=============================================="
+          - "Target Host: {{ target_host }}"
+          - "Log File: {{ log_file_path }}"
+          - "Time Range: Last {{ log_hours_back }} hour(s)"
+          - "Dependency Tag: {{ dependency_tag }}"
+          - "=============================================="
+
+    - name: Check if log file exists
+      ansible.builtin.stat:
+        path: "{{ log_file_path }}"
+      register: log_file_stat
+
+    - name: Fail if log file does not exist
+      ansible.builtin.fail:
+        msg: "Log file {{ log_file_path }} does not exist on {{ target_host }}"
+      when: not log_file_stat.stat.exists
+
+    - name: Get cutoff timestamp for log filtering
+      ansible.builtin.set_fact:
+        cutoff_timestamp: "{{ '%Y-%m-%dT%H:%M:%S' | strftime(ansible_date_time.epoch | int - (log_hours_back | int * 3600)) }}"
+
+    - name: Read container log file
+      ansible.builtin.slurp:
+        src: "{{ log_file_path }}"
+      register: log_file_raw
+
+    - name: Decode log content
+      ansible.builtin.set_fact:
+        log_content_full: "{{ log_file_raw.content | b64decode }}"
+
+    - name: Filter logs to time range
+      ansible.builtin.set_fact:
+        log_content: "{{ log_content_full | regex_findall('.*' + cutoff_timestamp[:10] + '.*') | join('\n') }}"
+
+    - name: Count log entries
+      ansible.builtin.set_fact:
+        log_line_count: "{{ log_content.split('\n') | length }}"
+
+    - name: Display log collection summary
+      ansible.builtin.debug:
+        msg:
+          - "Log Collection Summary:"
+          - "  Total lines collected: {{ log_line_count }}"
+          - "  Cutoff timestamp: {{ cutoff_timestamp }}"
+          - "  Log file size: {{ log_file_stat.stat.size }} bytes"
+
+    - name: Prepare AI analysis prompt
+      ansible.builtin.set_fact:
+        analysis_prompt: |
+          You are an expert Site Reliability Engineer analyzing OpenShift container logs for a payment processing application.
+
+          Context:
+          - Application: Payment App (payment-app-pod123)
+          - Namespace: payment-prod
+          - Time Range: Last {{ log_hours_back }} hour(s)
+          - This analysis is part of investigating a production incident involving 5 correlated OpenShift alerts
+
+          Related Alerts Context:
+          - Pod CrashLoopBackOff (payment-app)
+          - Database connection failures
+          - High memory usage / OOMKill events
+          - Liveness probe failures
+          - API response time degradation
+
+          Task:
+          Analyze the following container logs and provide:
+
+          1. **Root Cause Analysis**: Identify the primary cause of failures based on log patterns
+          2. **Error Patterns**: Summarize critical errors, warnings, and their frequency
+          3. **Timeline**: Describe the sequence of events leading to the current state
+          4. **Correlation**: Explain how these logs relate to the OpenShift alerts mentioned above
+          5. **Recommendations**: Provide specific remediation steps
+
+          Container Logs:
+          ```
+          {{ log_content[:4000] }}
+          ```
+
+          Provide a clear, structured analysis that will be added to the ServiceNow incident.
+
+    - name: Call LLM API for log analysis
+      ansible.builtin.uri:
+        url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'LLM_API_KEY') }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          model: "{{ lookup('env', 'LLM_MODEL') }}"
+          messages:
+            - role: "system"
+              content: "You are an expert Site Reliability Engineer analyzing container logs for production incidents."
+            - role: "user"
+              content: "{{ analysis_prompt }}"
+          temperature: 0.3
+          max_tokens: 1500
+        validate_certs: false
+        timeout: 60
+      register: llm_response
+      retries: 3
+      delay: 5
+      until: llm_response.status == 200
+
+    - name: Extract AI analysis from response
+      ansible.builtin.set_fact:
+        ai_log_summary: "{{ llm_response.json.choices[0].message.content }}"
+
+    - name: Display AI analysis preview
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "AI Log Analysis Complete"
+          - "=============================================="
+          - "{{ ai_log_summary[:500] }}..."
+          - "=============================================="
+
+    - name: Save log content to local file for attachment
+      ansible.builtin.copy:
+        content: "{{ log_content }}"
+        dest: "/tmp/openshift_container_logs_{{ ansible_date_time.epoch }}.log"
+        mode: '0644'
+      delegate_to: localhost
+
+    - name: Save AI analysis to local file
+      ansible.builtin.copy:
+        content: |
+          OpenShift Container Log Analysis Report
+          ========================================
+
+          Host: {{ target_host }}
+          Log File: {{ log_file_path }}
+          Time Range: Last {{ log_hours_back }} hour(s)
+          Collected: {{ ansible_date_time.iso8601 }}
+          Log Lines: {{ log_line_count }}
+          Dependency Tag: {{ dependency_tag }}
+
+          AI Analysis:
+          {{ ai_log_summary }}
+
+          ---
+          Raw Logs (truncated to 4000 chars):
+          {{ log_content[:4000] }}
+        dest: "/tmp/openshift_log_analysis_{{ ansible_date_time.epoch }}.txt"
+        mode: '0644'
+      delegate_to: localhost
+
+    - name: Export variables for workflow (use set_stats to pass to next job)
+      ansible.builtin.set_stats:
+        data:
+          log_content: "{{ log_content }}"
+          ai_log_summary: "{{ ai_log_summary }}"
+          log_file_path: "{{ log_file_path }}"
+          target_host: "{{ target_host }}"
+          dependency_tag: "{{ dependency_tag }}"
+          log_analysis_timestamp: "{{ ansible_date_time.iso8601 }}"
+          log_line_count: "{{ log_line_count }}"
+          log_local_file: "/tmp/openshift_container_logs_{{ ansible_date_time.epoch }}.log"
+        per_host: false
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "Log Gathering Complete"
+          - "=============================================="
+          - "Variables exported via set_stats for next workflow job:"
+          - "  - log_content ({{ log_line_count }} lines)"
+          - "  - ai_log_summary"
+          - "  - dependency_tag: {{ dependency_tag }}"
+          - "  - target_host: {{ target_host }}"
+          - "  - log_local_file: /tmp/openshift_container_logs_{{ ansible_date_time.epoch }}.log"
+          - ""
+          - "Next Job: Update ServiceNow incident with logs and analysis"
+          - "=============================================="
