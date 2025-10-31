@@ -1,0 +1,48 @@
+---
+################################################################################
+# AIOps Multi-Source Event-Driven Automation Rulebook
+#
+# Handles multiple types of alerts:
+# 1. OpenShift Alert Correlation - Correlated alerts from OpenShift/Kubernetes
+# 2. Linux Server Log Alerts - Log analysis requests from Linux servers
+#
+# Webhook Endpoint: /endpoint (listens on port 5000)
+################################################################################
+
+- name: AIOps Multi-Source Event Processing
+  hosts: all
+  sources:
+    - ansible.eda.webhook:
+        host: 0.0.0.0
+        port: 5000
+
+  rules:
+    # ========================================================================
+    # RULE 1: OpenShift Alert Correlation (EXISTING USE CASE)
+    # ========================================================================
+    - name: Correlate OpenShift alerts and create incident
+      condition: event.correlated_alerts is defined
+      action:
+        run_workflow_template:
+          name: "AIOps: EDA Alert Correlation Workflow"
+          organization: "AIOps Demos"
+          job_args:
+            extra_vars:
+              correlated_alerts: "{{ event.correlated_alerts }}"
+
+    # ========================================================================
+    # RULE 2: Linux Server Log Analysis (NEW USE CASE)
+    # ========================================================================
+    - name: Process Linux log alert and analyze
+      condition: event.log_alert is defined
+      action:
+        run_workflow_template:
+          name: "AIOps: Linux Log Analysis Workflow"
+          organization: "AIOps Demos"
+          job_args:
+            extra_vars:
+              target_host: "{{ event.log_alert.hostname }}"
+              log_file_path: "{{ event.log_alert.log_path }}"
+              log_hours_back: "{{ event.log_alert.hours_back | default(1) }}"
+              alert_severity: "{{ event.log_alert.severity }}"
+              alert_source: "{{ event.log_alert.source | default('application') }}"
