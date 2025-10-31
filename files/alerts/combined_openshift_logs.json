@@ -149,7 +149,7 @@
     "alert_id": "log-alert-001",
     "alert_type": "container_log_analysis",
     "dependency_tag": "payment-app-cluster-prod",
-    "hostname": "aws_rhel9",
+    "hostname": "ocp-worker-node-03",
     "log_path": "/var/log/containers/payment-app-pod123-container.log",
     "hours_back": 1,
     "severity": "critical",
@@ -159,6 +159,7 @@
       "pod_name": "payment-app-pod123",
       "container_name": "payment-app",
       "namespace": "payment-prod",
+      "node_name": "ocp-worker-node-03",
       "log_file_path": "/var/log/containers/payment-app-pod123-container.log",
       "correlation_window": "1 hour",
       "expected_log_patterns": [
@@ -170,7 +171,7 @@
     },
     "annotations": {
       "description": "Container log analysis requested for payment app pod correlation",
-      "summary": "Log alert triggered for payment-app-pod123 on node1",
+      "summary": "Log alert triggered for payment-app-pod123 on ocp-worker-node-03",
       "workflow_action": "gather_logs_and_analyze"
     }
   }
