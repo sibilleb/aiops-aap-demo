@@ -149,7 +149,7 @@
     "alert_id": "log-alert-001",
     "alert_type": "container_log_analysis",
     "dependency_tag": "payment-app-cluster-prod",
-    "hostname": "node1",
+    "hostname": "aws_rhel9",
     "log_path": "/var/log/containers/payment-app-pod123-container.log",
     "hours_back": 1,
     "severity": "critical",
