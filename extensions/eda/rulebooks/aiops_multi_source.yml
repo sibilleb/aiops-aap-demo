@@ -18,7 +18,7 @@
 
   rules:
     # ========================================================================
-    # RULE 1: OpenShift Alert Correlation (FIRST - processes alerts)
+    # RULE 1: OpenShift Alert Correlation
     # ========================================================================
     - name: Correlate OpenShift alerts and create incident
       condition: event.payload.correlated_alerts is defined or event.correlated_alerts is defined
@@ -29,54 +29,12 @@
           job_args:
             extra_vars:
               correlated_alerts: "{{ event.payload.correlated_alerts | default(event.correlated_alerts) }}"
-      throttle:
-        once_within: 1 seconds
-        group_by_attributes:
-          - payload.correlation_key
 
     # ========================================================================
-    # RULE 2: Linux Server Log Analysis (SECOND - processes logs)
+    # RULE 2: Linux Server Log Analysis
     # ========================================================================
     - name: Process Linux log alert and analyze
       condition: event.payload.log_alert is defined or event.log_alert is defined
-      action:
-        run_workflow_template:
-          name: "AIOps: Linux Log Analysis Workflow"
-          organization: "AIOps Demos"
-          job_args:
-            extra_vars:
-              target_host: "{{ (event.payload.log_alert | default(event.log_alert)).hostname }}"
-              log_file_path: "{{ (event.payload.log_alert | default(event.log_alert)).log_path }}"
-              log_hours_back: "{{ (event.payload.log_alert | default(event.log_alert)).hours_back | default(1) }}"
-              alert_severity: "{{ (event.payload.log_alert | default(event.log_alert)).severity }}"
-              alert_source: "{{ (event.payload.log_alert | default(event.log_alert)).source | default('application') }}"
-      throttle:
-        once_within: 1 seconds
-        group_by_attributes:
-          - payload.correlation_key
-
-    # ========================================================================
-    # RULE 2: OpenShift Alert Correlation ONLY (no log data)
-    # ========================================================================
-    - name: Correlate OpenShift alerts only
-      condition: >
-        (event.payload.correlated_alerts is defined or event.correlated_alerts is defined) and
-        (event.payload.log_alert is not defined and event.log_alert is not defined)
-      action:
-        run_workflow_template:
-          name: "AIOps: EDA Alert Correlation Workflow"
-          organization: "AIOps Demos"
-          job_args:
-            extra_vars:
-              correlated_alerts: "{{ event.payload.correlated_alerts | default(event.correlated_alerts) }}"
-
-    # ========================================================================
-    # RULE 3: Linux Server Log Analysis ONLY (no alert data)
-    # ========================================================================
-    - name: Process Linux log alert only
-      condition: >
-        (event.payload.log_alert is defined or event.log_alert is defined) and
-        (event.payload.correlated_alerts is not defined and event.correlated_alerts is not defined)
       action:
         run_workflow_template:
           name: "AIOps: Linux Log Analysis Workflow"
