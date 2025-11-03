@@ -29,6 +29,7 @@
           job_args:
             extra_vars:
               correlated_alerts: "{{ event.payload.correlated_alerts | default(event.correlated_alerts) }}"
+      enabled: true
 
     # ========================================================================
     # RULE 2: Linux Server Log Analysis (NEW USE CASE)
@@ -46,3 +47,4 @@
               log_hours_back: "{{ (event.payload.log_alert | default(event.log_alert)).hours_back | default(1) }}"
               alert_severity: "{{ (event.payload.log_alert | default(event.log_alert)).severity }}"
               alert_source: "{{ (event.payload.log_alert | default(event.log_alert)).source | default('application') }}"
+      enabled: true
