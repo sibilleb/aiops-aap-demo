@@ -149,8 +149,8 @@
     "alert_id": "log-alert-001",
     "alert_type": "container_log_analysis",
     "dependency_tag": "payment-app-cluster-prod",
-    "hostname": "ocp-worker-node-03",
-    "log_path": "/var/log/containers/payment-app-pod123-container.log",
+    "hostname": "localhost",
+    "log_path": "/tmp/var/log/containers/payment-app-pod123-container.log",
     "hours_back": 1,
     "severity": "critical",
     "timestamp": "2025-10-24T16:30:50.000Z",
@@ -160,7 +160,7 @@
       "container_name": "payment-app",
       "namespace": "payment-prod",
       "node_name": "ocp-worker-node-03",
-      "log_file_path": "/var/log/containers/payment-app-pod123-container.log",
+      "log_file_path": "/tmp/var/log/containers/payment-app-pod123-container.log",
       "correlation_window": "1 hour",
       "expected_log_patterns": [
         "Database connection pool exhausted",
@@ -171,7 +171,7 @@
     },
     "annotations": {
       "description": "Container log analysis requested for payment app pod correlation",
-      "summary": "Log alert triggered for payment-app-pod123 on ocp-worker-node-03",
+      "summary": "Log alert triggered for payment-app-pod123 on localhost demo",
       "workflow_action": "gather_logs_and_analyze"
     }
   }
