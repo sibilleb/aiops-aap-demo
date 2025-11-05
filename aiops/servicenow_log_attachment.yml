@@ -220,6 +220,25 @@
           Container logs from {{ target_host }} have been attached and analyzed.
           See work notes for AI-generated analysis and correlation with alerts.
 
+    - name: Display description update - Before/After
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "📝 Updating Incident Description..."
+          - "═════════════════════════════════════════════"
+          - ""
+          - "📋 BEFORE (first 400 chars):"
+          - "{{ current_incident.json.result.description[:400] }}..."
+          - ""
+          - "➕ ADDING:"
+          - "---"
+          - "CONTAINER LOG ANALYSIS ADDED:"
+          - "Container logs from {{ target_host }} have been attached and analyzed."
+          - "See work notes for AI-generated analysis and correlation with alerts."
+          - ""
+          - "Updating ServiceNow..."
+          - ""
+
     - name: Update incident description
       ansible.builtin.uri:
         url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident/{{ incident_sys_id }}"

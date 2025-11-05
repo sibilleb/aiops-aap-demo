@@ -61,6 +61,21 @@
 
           Format: Just return the enhanced short description, nothing else.
 
+    - name: Display original vs AI enhancement task - Short Description
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "🤖 LLM Task 1/3: Enhancing Short Description"
+          - "═════════════════════════════════════════════"
+          - ""
+          - "📋 BEFORE (Original):"
+          - "   {{ short_description }}"
+          - ""
+          - "🎯 AI Objective: Transform into clear, concise title"
+          - ""
+          - "Sending to LLM..."
+          - ""
+
     - name: Call LLM API for short description
       ansible.builtin.uri:
         url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
@@ -86,6 +101,26 @@
     - name: Extract enhanced short description
       ansible.builtin.set_fact:
         enhanced_short_desc: "{{ short_desc_response.json.choices[0].message.content | trim }}"
+
+    - name: Display AI-enhanced short description
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "✅ LLM Response Received - Short Description"
+          - "═════════════════════════════════════════════"
+          - ""
+          - "📋 BEFORE:"
+          - "   {{ short_description }}"
+          - ""
+          - "📝 AFTER (AI-Enhanced):"
+          - "   {{ enhanced_short_desc }}"
+          - ""
+          - "📊 Stats:"
+          - "   • Tokens Used: {{ short_desc_response.json.usage.total_tokens }}"
+          - "   • Length: {{ enhanced_short_desc | length }} chars"
+          - ""
+          - "Updating ServiceNow..."
+          - ""
 
     - name: Update ServiceNow - Short Description
       ansible.builtin.uri:
@@ -130,6 +165,21 @@
 
           Use clear technical language accessible to both technical and non-technical stakeholders.
 
+    - name: Display LLM Task 2/3 - Full Description Enhancement
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "🤖 LLM Task 2/3: Enhancing Full Description"
+          - "═════════════════════════════════════════════"
+          - ""
+          - "📋 BEFORE (Original - first 300 chars):"
+          - "{{ description[:300] if description else 'No description provided' }}..."
+          - ""
+          - "🎯 AI Objective: Create comprehensive technical analysis"
+          - ""
+          - "Sending to LLM (max 800 tokens)..."
+          - ""
+
     - name: Call LLM API for description
       ansible.builtin.uri:
         url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
@@ -155,6 +205,23 @@
     - name: Extract enhanced description
       ansible.builtin.set_fact:
         enhanced_desc: "{{ description_response.json.choices[0].message.content | trim }}"
+
+    - name: Display AI-enhanced description
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "✅ LLM Response Received - Full Description"
+          - "═════════════════════════════════════════════"
+          - ""
+          - "📝 AFTER (AI-Enhanced - first 500 chars):"
+          - "{{ enhanced_desc[:500] }}..."
+          - ""
+          - "📊 Stats:"
+          - "   • Tokens Used: {{ description_response.json.usage.total_tokens }}"
+          - "   • Total Length: {{ enhanced_desc | length }} chars"
+          - ""
+          - "Updating ServiceNow..."
+          - ""
 
     - name: Update ServiceNow - Description
       ansible.builtin.uri:
@@ -198,6 +265,22 @@
 
           Be concise and actionable.
 
+    - name: Display LLM Task 3/3 - RCA and Recommendations
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "🤖 LLM Task 3/3: Root Cause Analysis & Recommendations"
+          - "═════════════════════════════════════════════"
+          - ""
+          - "🎯 AI Objective:"
+          - "   • Identify root cause possibilities"
+          - "   • Recommend immediate actions"
+          - "   • Provide escalation guidance"
+          - "   • Suggest prevention measures"
+          - ""
+          - "Sending to LLM (max 600 tokens)..."
+          - ""
+
     - name: Call LLM API for RCA
       ansible.builtin.uri:
         url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
@@ -223,6 +306,22 @@
     - name: Extract RCA and recommendations
       ansible.builtin.set_fact:
         rca_analysis: "{{ rca_response.json.choices[0].message.content | trim }}"
+
+    - name: Display RCA analysis
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "✅ LLM Response Received - RCA & Recommendations"
+          - "═════════════════════════════════════════════"
+          - ""
+          - "📝 Root Cause Analysis:"
+          - "{{ rca_analysis }}"
+          - ""
+          - "📊 Stats:"
+          - "   • Tokens Used: {{ rca_response.json.usage.total_tokens }}"
+          - ""
+          - "Adding to work notes..."
+          - ""
 
     - name: Build final work notes
       ansible.builtin.set_fact:

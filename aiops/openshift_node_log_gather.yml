@@ -111,6 +111,25 @@
 
           Provide a clear, structured analysis that will be added to the ServiceNow incident.
 
+    - name: Display LLM request - Container Log Analysis
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "🤖 Sending Container Logs to AI for Analysis..."
+          - "═════════════════════════════════════════════"
+          - ""
+          - "📊 Input Data:"
+          - "   • Log Lines: {{ log_line_count }}"
+          - "   • Characters Sent: {{ log_content[:4000] | length }}"
+          - "   • Model: {{ lookup('env', 'LLM_MODEL') }}"
+          - "   • Max Tokens: 1500"
+          - ""
+          - "📝 Log Preview (first 500 chars):"
+          - "{{ log_content[:500] }}"
+          - ""
+          - "⏳ Analyzing... (this may take 15-30 seconds)"
+          - ""
+
     - name: Call LLM API for log analysis
       ansible.builtin.uri:
         url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
@@ -139,20 +158,19 @@
       ansible.builtin.set_fact:
         ai_log_summary: "{{ llm_response.json.choices[0].message.content }}"
 
-    - name: Display AI analysis preview
+    - name: Display AI log analysis result
       ansible.builtin.debug:
         msg:
           - ""
-          - "╔════════════════════════════════════════════════════════════════╗"
-          - "║  ✅ AI LOG ANALYSIS COMPLETE                                  ║"
-          - "╚════════════════════════════════════════════════════════════════╝"
+          - "✅ AI Analysis Complete"
+          - "═════════════════════════════════════════════"
           - ""
-          - "🤖 AI Model: {{ lookup('env', 'LLM_MODEL') }}"
-          - "📝 Analysis Preview (first 500 chars):"
+          - "📊 Token Usage:"
+          - "   • Tokens Used: {{ llm_response.json.usage.total_tokens }}"
+          - "   • Analysis Length: {{ ai_log_summary | length }} characters"
           - ""
-          - "{{ ai_log_summary[:500] }}..."
-          - ""
-          - "💾 Full analysis will be attached to ServiceNow incident"
+          - "📝 AI Analysis (full text):"
+          - "{{ ai_log_summary }}"
           - ""
 
     - name: Save log content to local file for attachment

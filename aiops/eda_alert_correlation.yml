@@ -130,6 +130,21 @@
     # ========================================================================
     # STEP 3: Call LLM API for analysis
     # ========================================================================
+    - name: Display LLM request details
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "🤖 Sending Request to LLM..."
+          - "─────────────────────────────────────────────"
+          - "   Model: {{ lookup('env', 'LLM_MODEL') }}"
+          - "   Temperature: {{ llm_temperature }}"
+          - "   Max Tokens: {{ llm_max_tokens }}"
+          - "   Endpoint: {{ lookup('env', 'LLM_ENDPOINT_URL') }}"
+          - ""
+          - "📝 Prompt (first 500 chars):"
+          - "{{ analysis_prompt[:500] }}..."
+          - ""
+
     - name: Call LLM API for correlated alert analysis
       ansible.builtin.uri:
         url: "{{ lookup('env', 'LLM_ENDPOINT_URL') }}"
@@ -157,6 +172,19 @@
         ai_analysis_full: "{{ llm_response.json.choices[0].message.content | trim }}"
         llm_tokens_used: "{{ llm_response.json.usage.total_tokens }}"
 
+    - name: Display LLM response
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "✅ LLM Response Received"
+          - "─────────────────────────────────────────────"
+          - "   Tokens Used: {{ llm_tokens_used }}"
+          - "   Response Length: {{ ai_analysis_full | length }} characters"
+          - ""
+          - "📄 Full Analysis:"
+          - "{{ ai_analysis_full }}"
+          - ""
+
     # ========================================================================
     # STEP 4: Generate short description (separate call for focused output)
     # ========================================================================
@@ -175,6 +203,19 @@
           {% endfor %}
 
           Create a clear, technical incident title that summarizes the issue. Just return the title, nothing else.
+
+    - name: Display short description LLM request
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "🤖 Generating Incident Title..."
+          - "─────────────────────────────────────────────"
+          - "   Model: {{ lookup('env', 'LLM_MODEL') }}"
+          - "   Max Length: 100 characters"
+          - ""
+          - "📝 Title Generation Prompt:"
+          - "{{ short_desc_prompt }}"
+          - ""
 
     - name: Call LLM API for short description
       ansible.builtin.uri:
@@ -201,6 +242,18 @@
     - name: Extract short description
       ansible.builtin.set_fact:
         ai_short_description: "{{ short_desc_response.json.choices[0].message.content | trim }}"
+
+    - name: Display generated incident title
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "✅ Incident Title Generated"
+          - "─────────────────────────────────────────────"
+          - "   {{ ai_short_description }}"
+          - ""
+          - "   Length: {{ ai_short_description | length }} characters"
+          - "   Tokens: {{ short_desc_response.json.usage.total_tokens }}"
+          - ""
 
     # ========================================================================
     # STEP 5: Prepare structured data for ServiceNow incident
