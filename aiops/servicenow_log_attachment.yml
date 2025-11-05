@@ -86,7 +86,7 @@
 
     - name: Attach raw log file to ServiceNow incident
       ansible.builtin.uri:
-        url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/attachment/file"
+        url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/attachment/file?table_name=incident&table_sys_id={{ incident_sys_id }}&file_name={{ log_attachment_name }}"
         method: POST
         user: "{{ lookup('env', 'SNOW_USERNAME') }}"
         password: "{{ lookup('env', 'SNOW_PASSWORD') }}"
@@ -99,10 +99,6 @@
         timeout: 60
         validate_certs: false
       register: attachment_response
-      vars:
-        attachment_url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/attachment/file?table_name=incident&table_sys_id={{ incident_sys_id }}&file_name={{ log_attachment_name }}"
-      args:
-        url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/attachment/file?table_name=incident&table_sys_id={{ incident_sys_id }}&file_name={{ log_attachment_name }}"
 
     - name: Log attachment successful
       ansible.builtin.debug:
