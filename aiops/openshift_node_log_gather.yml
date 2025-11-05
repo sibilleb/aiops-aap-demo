@@ -12,14 +12,26 @@
     - name: Display log gathering information
       ansible.builtin.debug:
         msg:
-          - "=============================================="
-          - "OpenShift Container Log Gathering & AI Analysis"
-          - "=============================================="
-          - "Target Host: {{ target_host }}"
-          - "Log File: {{ log_file_path }}"
-          - "Time Range: Last {{ log_hours_back }} hour(s)"
-          - "Dependency Tag: {{ dependency_tag }}"
-          - "=============================================="
+          - ""
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║  🔍 OPENSHIFT CONTAINER LOG GATHERING & AI ANALYSIS           ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "📋 WORKFLOW STEP 2 of 3: Log Collection & Analysis"
+          - ""
+          - "🎯 Target Configuration:"
+          - "   • Host: {{ target_host }}"
+          - "   • Log File: {{ log_file_path }}"
+          - "   • Time Range: Last {{ log_hours_back }} hour(s)"
+          - "   • Correlation Key: {{ dependency_tag }}"
+          - ""
+          - "🔄 This job will:"
+          - "   1. Collect container logs from the affected node"
+          - "   2. Analyze logs using AI to identify root causes"
+          - "   3. Pass findings to ServiceNow for incident enrichment"
+          - ""
+          - "════════════════════════════════════════════════════════════════"
+          - ""
 
     - name: Check if log file exists
       ansible.builtin.stat:
@@ -55,10 +67,15 @@
     - name: Display log collection summary
       ansible.builtin.debug:
         msg:
-          - "Log Collection Summary:"
-          - "  Total lines collected: {{ log_line_count }}"
-          - "  Cutoff timestamp: {{ cutoff_timestamp }}"
-          - "  Log file size: {{ log_file_stat.stat.size }} bytes"
+          - ""
+          - "✅ Log Collection Complete"
+          - "─────────────────────────────────────────────"
+          - "   📊 Lines Collected: {{ log_line_count }}"
+          - "   📁 File Size: {{ (log_file_stat.stat.size / 1024) | round(2) }} KB"
+          - "   ⏰ Cutoff Time: {{ cutoff_timestamp }}"
+          - ""
+          - "🤖 Initiating AI Analysis..."
+          - ""
 
     - name: Prepare AI analysis prompt
       ansible.builtin.set_fact:
@@ -125,11 +142,18 @@
     - name: Display AI analysis preview
       ansible.builtin.debug:
         msg:
-          - "=============================================="
-          - "AI Log Analysis Complete"
-          - "=============================================="
+          - ""
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║  ✅ AI LOG ANALYSIS COMPLETE                                  ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "🤖 AI Model: {{ lookup('env', 'LLM_MODEL') }}"
+          - "📝 Analysis Preview (first 500 chars):"
+          - ""
           - "{{ ai_log_summary[:500] }}..."
-          - "=============================================="
+          - ""
+          - "💾 Full analysis will be attached to ServiceNow incident"
+          - ""
 
     - name: Save log content to local file for attachment
       ansible.builtin.copy:
@@ -177,15 +201,22 @@
     - name: Summary
       ansible.builtin.debug:
         msg:
-          - "=============================================="
-          - "Log Gathering Complete"
-          - "=============================================="
-          - "Variables exported via set_stats for next workflow job:"
-          - "  - log_content ({{ log_line_count }} lines)"
-          - "  - ai_log_summary"
-          - "  - dependency_tag: {{ dependency_tag }}"
-          - "  - target_host: {{ target_host }}"
-          - "  - log_local_file: /tmp/openshift_container_logs_{{ ansible_date_time.epoch }}.log"
           - ""
-          - "Next Job: Update ServiceNow incident with logs and analysis"
-          - "=============================================="
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║  ✨ WORKFLOW STEP 2 COMPLETE                                  ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "📦 Data Exported to Next Workflow Job:"
+          - "   ✓ Log Content ({{ log_line_count }} lines)"
+          - "   ✓ AI Analysis Summary"
+          - "   ✓ Correlation Key: {{ dependency_tag }}"
+          - "   ✓ Target Host: {{ target_host }}"
+          - "   ✓ Local File: /tmp/openshift_container_logs_{{ ansible_date_time.epoch }}.log"
+          - ""
+          - "⏭️  NEXT: ServiceNow Incident Enrichment"
+          - "   → Attach logs to incident"
+          - "   → Add AI analysis to work notes"
+          - "   → Update incident description"
+          - ""
+          - "════════════════════════════════════════════════════════════════"
+          - ""

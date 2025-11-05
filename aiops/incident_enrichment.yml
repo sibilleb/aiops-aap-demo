@@ -15,14 +15,25 @@
     - name: Display demo information
       ansible.builtin.debug:
         msg:
-          - "================================"
-          - "AIOps Incident Enrichment Demo"
-          - "================================"
-          - "Incident: {{ incident_number }}"
-          - "Sys ID: {{ incident_sys_id }}"
-          - "Original Short Description: {{ short_description }}"
-          - "LLM Model: {{ lookup('env', 'LLM_MODEL') }}"
-          - "================================"
+          - ""
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║  ✨ AIOPS INCIDENT ENRICHMENT                                 ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "🎯 Target Incident:"
+          - "   • Number: {{ incident_number }}"
+          - "   • Sys ID: {{ incident_sys_id }}"
+          - "   • Current Title: {{ short_description }}"
+          - ""
+          - "🤖 AI Model: {{ lookup('env', 'LLM_MODEL') }}"
+          - ""
+          - "🔄 This job will:"
+          - "   1. Enhance incident title for clarity"
+          - "   2. Generate detailed analysis and recommendations"
+          - "   3. Update ServiceNow with AI-enriched content"
+          - ""
+          - "════════════════════════════════════════════════════════════════"
+          - ""
 
     - name: Validate required variables
       ansible.builtin.assert:
@@ -241,6 +252,7 @@
           - Description: {{ description_response.json.usage.total_tokens }} tokens
           - RCA Analysis: {{ rca_response.json.usage.total_tokens }} tokens
           - Total: {{ short_desc_response.json.usage.total_tokens + description_response.json.usage.total_tokens + rca_response.json.usage.total_tokens }} tokens
+          AAP Job ID: {{ tower_job_id | default(awx_job_id) | default('N/A') }}
           ========================================
 
     - name: Update ServiceNow - Final Work Notes and Flag
@@ -265,14 +277,25 @@
     - name: Display ServiceNow update result
       ansible.builtin.debug:
         msg:
-          - "================================"
-          - "SERVICENOW UPDATE SUCCESSFUL"
-          - "================================"
-          - "Incident: {{ incident_number }}"
-          - "Sys ID: {{ incident_sys_id }}"
-          - "Updated: {{ snow_update.json.result.sys_updated_on }}"
-          - "AI Enriched Flag: {{ snow_update.json.result.u_ai_enriched }}"
-          - "================================"
           - ""
-          - "View in ServiceNow:"
-          - "{{ lookup('env', 'SNOW_INSTANCE') }}/nav_to.do?uri=incident.do?sys_id={{ incident_sys_id }}"
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║  ✅ SERVICENOW ENRICHMENT COMPLETE                            ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "🎫 Incident: {{ incident_number }}"
+          - ""
+          - "✅ AI Enhancements Applied:"
+          - "   ✓ Short description enhanced for clarity"
+          - "   ✓ Full description enriched with technical analysis"
+          - "   ✓ Root cause analysis added to work notes"
+          - "   ✓ Recommendations provided for responders"
+          - "   ✓ AI enriched flag set: {{ snow_update.json.result.u_ai_enriched }}"
+          - ""
+          - "📊 Token Usage:"
+          - "   • Total: {{ short_desc_response.json.usage.total_tokens + description_response.json.usage.total_tokens + rca_response.json.usage.total_tokens }} tokens"
+          - ""
+          - "🔗 View in ServiceNow:"
+          - "   {{ lookup('env', 'SNOW_INSTANCE') }}/nav_to.do?uri=incident.do?sys_id={{ incident_sys_id }}"
+          - ""
+          - "════════════════════════════════════════════════════════════════"
+          - ""

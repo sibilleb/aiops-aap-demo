@@ -16,14 +16,22 @@
     - name: Display log attachment workflow information
       ansible.builtin.debug:
         msg:
-          - "=============================================="
-          - "ServiceNow Log Attachment Workflow"
-          - "=============================================="
-          - "Dependency Tag: {{ dependency_tag }}"
-          - "Target Host: {{ target_host }}"
-          - "Log File: {{ log_file_path }}"
-          - "Wait Time: {{ wait_for_incident_seconds }}s"
-          - "=============================================="
+          - ""
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║  📎 SERVICENOW INCIDENT ENRICHMENT                            ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "📋 WORKFLOW STEP 3 of 3: Attach Logs & AI Analysis"
+          - ""
+          - "🔍 Search Parameters:"
+          - "   • Correlation Key: {{ dependency_tag }}"
+          - "   • Source Host: {{ target_host }}"
+          - "   • Log File: {{ log_file_path }}"
+          - ""
+          - "⏳ Waiting {{ wait_for_incident_seconds }}s for incident creation..."
+          - ""
+          - "════════════════════════════════════════════════════════════════"
+          - ""
 
     - name: Wait for incident creation workflow to complete
       ansible.builtin.pause:
@@ -33,13 +41,13 @@
     - name: Display ServiceNow query details
       ansible.builtin.debug:
         msg:
-          - "=============================================="
-          - "ServiceNow Incident Query"
-          - "=============================================="
-          - "Instance: {{ lookup('env', 'SNOW_INSTANCE') }}"
-          - "Search Criteria: u_dependency_tag={{ dependency_tag }}"
-          - "Full Query URL: {{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident?sysparm_query=u_dependency_tag={{ dependency_tag }}^ORDERBYDESCsys_created_on&sysparm_limit=1&sysparm_fields=sys_id,number,short_description,state,u_dependency_tag,sys_created_on"
-          - "=============================================="
+          - ""
+          - "🔎 Searching ServiceNow for Related Incident..."
+          - "─────────────────────────────────────────────"
+          - "   Instance: {{ lookup('env', 'SNOW_INSTANCE') }}"
+          - "   Filter: u_dependency_tag={{ dependency_tag }}"
+          - "   Sort: Newest first"
+          - ""
 
     - name: Query ServiceNow for incident by dependency_tag
       ansible.builtin.uri:
@@ -81,15 +89,16 @@
     - name: Display found incident
       ansible.builtin.debug:
         msg:
-          - "=============================================="
-          - "MATCHED INCIDENT"
-          - "=============================================="
-          - "Number: {{ incident_number }}"
-          - "Sys ID: {{ incident_sys_id }}"
-          - "Short Description: {{ incident_short_desc }}"
-          - "Dependency Tag: {{ incident_query.json.result[0].u_dependency_tag | default('NOT SET') }}"
-          - "Created On: {{ incident_query.json.result[0].sys_created_on | default('UNKNOWN') }}"
-          - "=============================================="
+          - ""
+          - "✅ INCIDENT FOUND!"
+          - "─────────────────────────────────────────────"
+          - "   🎫 Number: {{ incident_number }}"
+          - "   📝 Description: {{ incident_short_desc }}"
+          - "   🔗 Correlation Tag: {{ incident_query.json.result[0].u_dependency_tag | default('NOT SET') }}"
+          - "   📅 Created: {{ incident_query.json.result[0].sys_created_on | default('UNKNOWN') }}"
+          - ""
+          - "📎 Proceeding with log attachment and enrichment..."
+          - ""
 
     # ========================================================================
     # STEP 1: Attach Raw Log File to Incident
@@ -151,6 +160,7 @@
           - Namespace: payment-prod
           - Host: {{ target_host }}
           - Log Lines Analyzed: {{ (log_content.split('\n') | length) if log_content else 'N/A' }}
+          - AAP Job ID: {{ tower_job_id | default(awx_job_id) | default('N/A') }}
 
           CORRELATION WITH ALERTS:
           This log analysis correlates with the OpenShift alerts that triggered
@@ -231,20 +241,29 @@
     - name: Display final summary
       ansible.builtin.debug:
         msg:
-          - "=============================================="
-          - "SERVICENOW INCIDENT UPDATE COMPLETE"
-          - "=============================================="
-          - "Incident: {{ incident_number }}"
-          - "Sys ID: {{ incident_sys_id }}"
-          - "Updates Applied:"
-          - "  ✓ Raw log file attached ({{ log_attachment_name }})"
-          - "  ✓ AI log analysis added to work notes"
-          - "  ✓ Incident description updated"
-          - "  ✓ Log analysis flag set: true"
           - ""
-          - "View in ServiceNow:"
-          - "{{ lookup('env', 'SNOW_INSTANCE') }}/nav_to.do?uri=incident.do?sys_id={{ incident_sys_id }}"
-          - "=============================================="
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║  ✨ SERVICENOW INCIDENT ENRICHMENT COMPLETE                   ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "🎫 Incident: {{ incident_number }}"
+          - ""
+          - "✅ Updates Applied:"
+          - "   📎 Raw log file attached ({{ log_attachment_name }})"
+          - "   🤖 AI log analysis added to work notes"
+          - "   📝 Incident description updated with log context"
+          - "   🏷️  Log analysis flag set: true"
+          - ""
+          - "🔗 View in ServiceNow:"
+          - "   {{ lookup('env', 'SNOW_INSTANCE') }}/nav_to.do?uri=incident.do?sys_id={{ incident_sys_id }}"
+          - ""
+          - "════════════════════════════════════════════════════════════════"
+          - ""
+          - "🎉 AIOPS WORKFLOW COMPLETE!"
+          - "   Alert Correlation → Log Analysis → ServiceNow Enrichment"
+          - ""
+          - "════════════════════════════════════════════════════════════════"
+          - ""
 
     - name: Export incident details for next workflow steps
       ansible.builtin.set_stats:

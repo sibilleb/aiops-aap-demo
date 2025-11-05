@@ -26,14 +26,24 @@
     - name: Display incident creation information
       ansible.builtin.debug:
         msg:
-          - "========================================="
-          - "Creating ServiceNow Incident"
-          - "========================================="
-          - "Short Description: {{ ai_short_description }}"
-          - "Severity: {{ incident_severity }}"
-          - "Alert Count: {{ alert_count }}"
-          - "Dependency Tag: {{ dependency_tag }}"
-          - "========================================="
+          - ""
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║  🎫 SERVICENOW INCIDENT CREATION                              ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "📋 WORKFLOW STEP 1 of 3: Create Incident from Correlated Alerts"
+          - ""
+          - "📊 Incident Summary:"
+          - "   • Title: {{ ai_short_description }}"
+          - "   • Severity: {{ incident_severity }}"
+          - "   • Correlated Alerts: {{ alert_count }}"
+          - "   • Affected Service: {{ dependency_tag }}"
+          - ""
+          - "🤖 AI Analysis: Ready"
+          - "📝 Alert Details: Formatted"
+          - ""
+          - "════════════════════════════════════════════════════════════════"
+          - ""
 
     - name: Validate required data from previous workflow job
       ansible.builtin.assert:
@@ -71,6 +81,7 @@
           AI Model: {{ lookup('env', 'LLM_MODEL') }}
           Analysis Timestamp: {{ ansible_date_time.iso8601 }}
           LLM Tokens Used: {{ llm_tokens_used }}
+          AAP Job ID: {{ tower_job_id | default(awx_job_id) | default('N/A') }}
           ========================================
 
     # ========================================================================
@@ -107,27 +118,35 @@
     - name: Display incident creation result
       ansible.builtin.debug:
         msg:
-          - "========================================="
-          - "SERVICENOW INCIDENT CREATED SUCCESSFULLY"
-          - "========================================="
-          - "Incident Number: {{ snow_incident.json.result.number }}"
-          - "Incident Sys ID: {{ snow_incident.json.result.sys_id }}"
-          - "State: {{ snow_incident.json.result.state }}"
-          - "Priority: {{ snow_incident.json.result.priority }}"
-          - "Urgency: {{ snow_incident.json.result.urgency }}"
-          - "Impact: {{ snow_incident.json.result.impact }}"
-          - "Created On: {{ snow_incident.json.result.sys_created_on }}"
-          - "========================================="
           - ""
-          - "View incident in ServiceNow:"
-          - "{{ snow_instance_url }}/nav_to.do?uri=incident.do?sys_id={{ snow_incident.json.result.sys_id }}"
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║  ✅ SERVICENOW INCIDENT CREATED SUCCESSFULLY                  ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
           - ""
-          - "Incident Summary:"
-          - "• Correlated {{ alert_count }} alerts"
-          - "• Affected hosts: {{ affected_hosts }}"
-          - "• Dependency tag: {{ dependency_tag }}"
-          - "• AI analysis: {{ llm_tokens_used }} tokens"
-          - "========================================="
+          - "🎫 Incident Details:"
+          - "   • Number: {{ snow_incident.json.result.number }}"
+          - "   • Sys ID: {{ snow_incident.json.result.sys_id }}"
+          - "   • Priority: {{ snow_incident.json.result.priority }} (1=Critical, 2=High, 3=Medium)"
+          - "   • State: {{ snow_incident.json.result.state }} (2=In Progress)"
+          - "   • Created: {{ snow_incident.json.result.sys_created_on }}"
+          - ""
+          - "📊 Incident Contents:"
+          - "   ✓ AI-generated summary and analysis"
+          - "   ✓ {{ alert_count }} correlated alerts"
+          - "   ✓ Affected hosts: {{ affected_hosts }}"
+          - "   ✓ Dependency tag: {{ dependency_tag }}"
+          - "   ✓ LLM tokens used: {{ llm_tokens_used }}"
+          - ""
+          - "🔗 View in ServiceNow:"
+          - "   {{ snow_instance_url }}/nav_to.do?uri=incident.do?sys_id={{ snow_incident.json.result.sys_id }}"
+          - ""
+          - "⏭️  NEXT: Log Gathering & AI Analysis"
+          - "   → Collect container logs from {{ affected_hosts }}"
+          - "   → Perform AI root cause analysis"
+          - "   → Attach findings to this incident"
+          - ""
+          - "════════════════════════════════════════════════════════════════"
+          - ""
 
     # ========================================================================
     # STEP 3: Export incident details for potential downstream workflows
