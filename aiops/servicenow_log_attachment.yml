@@ -10,7 +10,7 @@
     target_host: "{{ target_host | default('node1') }}"
     log_file_path: "{{ log_file_path | default('/var/log/containers/payment-app-pod123-container.log') }}"
     log_local_file: "{{ log_local_file | default('') }}"
-    wait_for_incident_seconds: 60
+    wait_for_incident_seconds: 30
 
   tasks:
     - name: Display log attachment workflow information
@@ -28,7 +28,7 @@
           - "   • Source Host: {{ target_host }}"
           - "   • Log File: {{ log_file_path }}"
           - ""
-          - "⏳ Waiting {{ wait_for_incident_seconds }}s for incident creation..."
+          - "⏳ Waiting 30s for incident creation..."
           - ""
           - "════════════════════════════════════════════════════════════════"
           - ""
