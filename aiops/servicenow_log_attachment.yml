@@ -43,7 +43,7 @@
 
     - name: Query ServiceNow for incident by dependency_tag
       ansible.builtin.uri:
-        url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident"
+        url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident?sysparm_query=u_dependency_tag={{ dependency_tag }}^ORDERBYDESCsys_created_on&sysparm_limit=1&sysparm_fields=sys_id,number,short_description,state,u_dependency_tag,sys_created_on"
         method: GET
         user: "{{ lookup('env', 'SNOW_USERNAME') }}"
         password: "{{ lookup('env', 'SNOW_PASSWORD') }}"
@@ -54,13 +54,6 @@
         timeout: 30
         validate_certs: false
       register: incident_query
-      vars:
-        query_params:
-          sysparm_query: "u_dependency_tag={{ dependency_tag }}^ORDERBYDESCsys_created_on"
-          sysparm_limit: 1
-          sysparm_fields: "sys_id,number,short_description,state,u_dependency_tag,sys_created_on"
-      args:
-        url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident?sysparm_query=u_dependency_tag={{ dependency_tag }}^ORDERBYDESCsys_created_on&sysparm_limit=1&sysparm_fields=sys_id,number,short_description,state,u_dependency_tag,sys_created_on"
 
     - name: Display raw query results
       ansible.builtin.debug:
