@@ -96,6 +96,7 @@
           impact: "{{ '1' if snow_impact == '1' else '2' }}"
           priority: "{{ '1' if snow_priority == '1' else '2' }}"
           u_ai_enriched: true
+          u_dependency_tag: "{{ dependency_tag }}"
           comments: "Incident created from {{ alert_count }} correlated OpenShift alerts with dependency tag: {{ dependency_tag }}"
         status_code: 201
       register: snow_incident
