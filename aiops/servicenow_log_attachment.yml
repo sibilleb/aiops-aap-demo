@@ -30,6 +30,17 @@
         seconds: "{{ wait_for_incident_seconds }}"
       when: wait_for_incident_seconds | int > 0
 
+    - name: Display ServiceNow query details
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "ServiceNow Incident Query"
+          - "=============================================="
+          - "Instance: {{ lookup('env', 'SNOW_INSTANCE') }}"
+          - "Search Criteria: u_dependency_tag={{ dependency_tag }}"
+          - "Full Query URL: {{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident?sysparm_query=u_dependency_tag={{ dependency_tag }}^ORDERBYDESCsys_created_on&sysparm_limit=1&sysparm_fields=sys_id,number,short_description,state,u_dependency_tag,sys_created_on"
+          - "=============================================="
+
     - name: Query ServiceNow for incident by dependency_tag
       ansible.builtin.uri:
         url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident"
@@ -47,9 +58,19 @@
         query_params:
           sysparm_query: "u_dependency_tag={{ dependency_tag }}^ORDERBYDESCsys_created_on"
           sysparm_limit: 1
-          sysparm_fields: "sys_id,number,short_description,state"
+          sysparm_fields: "sys_id,number,short_description,state,u_dependency_tag,sys_created_on"
       args:
-        url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident?sysparm_query=u_dependency_tag={{ dependency_tag }}^ORDERBYDESCsys_created_on&sysparm_limit=1&sysparm_fields=sys_id,number,short_description,state"
+        url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident?sysparm_query=u_dependency_tag={{ dependency_tag }}^ORDERBYDESCsys_created_on&sysparm_limit=1&sysparm_fields=sys_id,number,short_description,state,u_dependency_tag,sys_created_on"
+
+    - name: Display raw query results
+      ansible.builtin.debug:
+        msg:
+          - "=============================================="
+          - "ServiceNow Query Results (Raw)"
+          - "=============================================="
+          - "Result Count: {{ incident_query.json.result | length }}"
+          - "Full Response: {{ incident_query.json.result | to_nice_json }}"
+          - "=============================================="
 
     - name: Verify incident was found
       ansible.builtin.assert:
@@ -67,10 +88,15 @@
     - name: Display found incident
       ansible.builtin.debug:
         msg:
-          - "Found Incident:"
-          - "  Number: {{ incident_number }}"
-          - "  Sys ID: {{ incident_sys_id }}"
-          - "  Description: {{ incident_short_desc }}"
+          - "=============================================="
+          - "MATCHED INCIDENT"
+          - "=============================================="
+          - "Number: {{ incident_number }}"
+          - "Sys ID: {{ incident_sys_id }}"
+          - "Short Description: {{ incident_short_desc }}"
+          - "Dependency Tag: {{ incident_query.json.result[0].u_dependency_tag | default('NOT SET') }}"
+          - "Created On: {{ incident_query.json.result[0].sys_created_on | default('UNKNOWN') }}"
+          - "=============================================="
 
     # ========================================================================
     # STEP 1: Attach Raw Log File to Incident
