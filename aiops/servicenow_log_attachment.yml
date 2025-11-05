@@ -45,17 +45,17 @@
       register: incident_query
       vars:
         query_params:
-          sysparm_query: "u_dependency_tag={{ dependency_tag }}^sys_created_onRELATIVEGT@minute@ago@5^ORDERBYDESCsys_created_on"
+          sysparm_query: "u_dependency_tag={{ dependency_tag }}^sys_created_onRELATIVEGT@minute@ago@30^ORDERBYDESCsys_created_on"
           sysparm_limit: 1
           sysparm_fields: "sys_id,number,short_description,state"
       args:
-        url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident?sysparm_query=u_dependency_tag={{ dependency_tag }}^sys_created_onRELATIVEGT@minute@ago@5^ORDERBYDESCsys_created_on&sysparm_limit=1&sysparm_fields=sys_id,number,short_description,state"
+        url: "{{ lookup('env', 'SNOW_INSTANCE') }}/api/now/table/incident?sysparm_query=u_dependency_tag={{ dependency_tag }}^sys_created_onRELATIVEGT@minute@ago@30^ORDERBYDESCsys_created_on&sysparm_limit=1&sysparm_fields=sys_id,number,short_description,state"
 
     - name: Verify incident was found
       ansible.builtin.assert:
         that:
           - incident_query.json.result | length > 0
-        fail_msg: "No incident found with dependency_tag '{{ dependency_tag }}' created in last 5 minutes"
+        fail_msg: "No incident found with dependency_tag '{{ dependency_tag }}' created in last 30 minutes"
         success_msg: "Found incident: {{ incident_query.json.result[0].number }}"
 
     - name: Extract incident details
